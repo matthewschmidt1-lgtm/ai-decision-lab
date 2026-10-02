@@ -9,7 +9,8 @@ const KEY = 'adlab.v2';
 const fresh = () => ({
   picks: [],            // investigations opened, in order
   read: null,           // what they believe is driving the decline
-  assume: null,         // the assumption they would challenge first
+  bets: {},             // their call on each belief in the blind-spot screen, before they see the data
+  checked: false,       // whether they have checked those calls against the data
   candidate: null,      // the decision they point AI at
   looked: [],           // other candidates they examined
   features: [...ALL_GROUPS],

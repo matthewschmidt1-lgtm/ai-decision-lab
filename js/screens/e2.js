@@ -65,7 +65,7 @@ function verdictText(ev) {
   const fixed = (ev.wapeCurrent - ev.wapeSimple) / ev.wapeCurrent;
   const gap = ev.wapeAI - ev.wapeSimple;
   const how = Math.abs(gap) < 0.004 ? 'about the same as' : gap < 0 ? 'a little better than' : 'worse than';
-  return `Most of the improvement is not AI. A simple method that forecasts what shoppers bought, not what distributors shipped, cuts the typical miss from ${pc(ev.wapeCurrent)} to ${pc(ev.wapeSimple)}, a ${Math.round(fixed * 100)}% reduction. The AI forecast scores ${pc(ev.wapeAI)}, ${how} the simple method.`;
+  return `Most of the improvement is not AI. A simple method that forecasts what shoppers bought, not what distributors shipped, and measures the trend from recent weeks instead of assuming 3% growth, cuts the typical miss from ${pc(ev.wapeCurrent)} to ${pc(ev.wapeSimple)}, a ${Math.round(fixed * 100)}% reduction. The AI forecast scores ${pc(ev.wapeAI)}, ${how} the simple method.`;
 }
 
 // ---------------------------------------------------------------- 0. The business view
@@ -219,7 +219,7 @@ const features = {
           h('div', { class: 'stats' },
             stat('Your recipe', pc(evT.wapeAI), `${locked.features.length} of ${GROUPS.length} inputs, ${cautionName(locked.caution)}.`, 'ai'),
             stat('Simple, no AI', pc(evT.wapeSimple), 'Same week last year, scaled by the trend.'),
-            stat('Today’s forecast', pc(evT.wapeCurrent), 'Last year’s shipments plus 3%.')),
+            stat('Today’s forecast', pc(evT.wapeCurrent), 'Last year’s shipments (3-week average) plus 3%.')),
           h('p', { class: 'prose' }, lesson),
           h('p', { class: 'small' }, 'The rest of the lab uses the recipe you locked in.'));
       }

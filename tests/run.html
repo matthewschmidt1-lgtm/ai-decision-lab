@@ -13,6 +13,7 @@ import * as D from '../js/data.js';
 import * as F from '../js/forecast.js';
 import * as V from '../js/value.js';
 import { recipeOf } from '../js/screens/common.js';
+import { testBeliefs, VERDICTS } from '../js/beliefs.js';
 
 const out = document.getElementById('out');
 let failed = 0;
@@ -132,6 +133,30 @@ t('Features: every combination trains and scores, at every caution level', () =>
     const g = G.filter((_, i) => mask & (1 << i)), e = F.evaluateValid(g, l2);
     if (!(e.wapeAI > 0 && e.wapeAI < 0.6)) return `bad for ${g} at ${l2}`;
   }
+});
+
+section('The blind spot: six beliefs, tested');
+const B = testBeliefs();
+t('The six verdicts are computed from the data, and the set is not rigged: one belief holds', () => {
+  const v = Object.values(B).map((b) => b.verdict);
+  return eq(v.length === 6 && v.every((x) => VERDICTS.some((y) => y.id === x)) && v.includes('holds'), v.join());
+});
+t('At least one belief is only conditionally true, one unsupported, one untestable', () => {
+  const v = Object.values(B).map((b) => b.verdict);
+  return eq(['conditions', 'unsupported', 'untestable'].every((x) => v.includes(x)), v.join());
+});
+t('Forecast: right on average in year one, high when it matters, and rarely within 5%', () => eq(Math.abs(B.forecast.biasYearOne) < 0.03 && B.forecast.biasRecent > 0.05 && B.forecast.within5 / B.forecast.weeks < 0.6, JSON.stringify(B.forecast)));
+t('Distributors: about even over a year, far off at quarter-end and around the price increase', () => eq(Math.abs(B.distributors.gapYear) < 0.02 && B.distributors.quarterEnd > 0.05 && B.distributors.quarterStart < -0.05 && B.distributors.preBuy > 0.05 && B.distributors.postBuy < -0.05, JSON.stringify(B.distributors)));
+t('Promotion adds volume, and the profit break-even is a positive discount below the price', () => eq(B.promo.pts > 0 && B.promo.breakEven > 0 && B.promo.breakEven < D.REVENUE_PER_CASE, JSON.stringify(B.promo)));
+t('Distribution: the estimate’s range holds both one-for-one and half', () => eq(B.distribution.lo < 0.5 && B.distribution.hi > 1, JSON.stringify(B.distribution)));
+t('Shelves: stockouts were normal during the promotion run and rose only after it', () => eq(B.shelves.during - B.shelves.duringLast < 0.01 && B.shelves.after - B.shelves.afterLast > 0.015, JSON.stringify(B.shelves)));
+t('Beliefs never read the hidden truth columns', () => {
+  const before = JSON.stringify(testBeliefs());
+  const saved = D.WEEKS.map((w) => [w.demand, w.want, w.expect]);
+  D.WEEKS.forEach((w) => { w.demand = 1; w.want = 1; w.expect = 1; });
+  const after = JSON.stringify(testBeliefs());
+  D.WEEKS.forEach((w, i) => { [w.demand, w.want, w.expect] = saved[i]; });
+  return eq(before === after, 'a verdict moved when the hidden columns changed');
 });
 
 section('The claims about accuracy');

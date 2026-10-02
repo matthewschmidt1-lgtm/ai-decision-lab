@@ -1,7 +1,8 @@
 // Experience 1: Find the opportunity.
 // Business problem -> decision -> AI opportunity. AI is a discovery here, not the starting point.
 
-import { h, choices, stat, note, mount, int, money, signed, table, disclose, waterfall, roundParts } from '../ui.js';
+import { h, choices, stat, note, mount, int, money, signed, table, disclose, waterfall, roundParts, seg } from '../ui.js';
+import { VERDICTS, VERDICT, testBeliefs } from '../beliefs.js';
 import { lineChart } from '../charts.js';
 import { WEEKS, WINDOW, decompose, windowStats, stockoutLoss, shipmentGap, weekLabel, inventoryEstimate, yoyNoise, REVENUE_PER_CASE,
          MARGIN_PER_CASE, CARRY_PER_CASE, COMPETITOR_WEEK, CHAIN_CUT_WEEK, PRICE_WEEK, CATEGORY_GROWTH } from '../data.js';
@@ -335,7 +336,7 @@ const evidence = {
           `The lab knows the true effect of each force, so it can show them cleanly. A real analysis estimates them, and a 13-week comparison moves by about ±${yoyNoise().toFixed(0)} points on noise alone. Read the bars as sizes, not as exact figures.`)),
       h('div', { class: 'stats' },
         stat('Empty shelves cost', money(LOSS.margin), `in margin over 13 weeks, against ${money(LOSS.marginLastYear)} a year earlier: ${int(LOSS.cases)} cases shoppers wanted and could not buy. A modelled figure: the lab knows what shoppers wanted.`),
-        stat('Today’s forecast', `${pc(EV.biasCurrent)} high`, `against what shoppers bought, over the last 26 weeks, and off by ${pc(EV.wapeCurrent, 1)} in a typical week. It forecasts shipments.`)),
+        stat('Today’s forecast', `${pc(EV.biasCurrent)} high`, `against what shoppers bought, over the last 26 weeks, and off by ${pc(EV.wapeCurrent, 1)} in a typical week. It is last year’s shipments plus 3%.`)),
       note('Part of this is temporary', `The inventory swing is not a lasting loss. Distributors cannot destock forever, so as it ends shipments should recover by roughly ${abs1(D.pts.inventory)} points. Tell finance. The part that is not temporary is shopper pull, down ${abs1(D.depPct)}%, and what caused that is mostly commercial.`),
       note('Why this matters', `The biggest single item is ${biggest.label.toLowerCase()}. But most of the drop came from how stock moved and how it was planned. That is a decision made thousands of times a year, and it is where better information, and maybe AI, could help.`),
       actions(ctx, { label: 'What is everyone assuming?' }));
@@ -343,27 +344,28 @@ const evidence = {
 };
 
 // ---------------------------------------------------------------- 5. The blind spot
+// Six beliefs, each tested against the data. The learner calls each one first, then checks. The four
+// verdicts are defined once (beliefs.js) and every number below is computed, so the screen cannot
+// drift from the data. At least one belief holds, and several are true on average and fail where it counts.
 const GAP = shipmentGap();
-const ratio = (a, b) => {
-  const sum = (arr, k) => arr.reduce((s, t) => s + WEEKS[t][k], 0);
-  const idx = []; for (let t = a; t <= b; t++) idx.push(t);
-  return sum(idx, 'ship') / sum(idx, 'dep') - 1;
-};
-const R_NOW = ratio(WINDOW[0], WINDOW[1]), R_THEN = ratio(WINDOW[0] - 52, WINDOW[1] - 52);
-const R_PRE = ratio(125, 129), R_POST = ratio(130, 134);
+const T = testBeliefs();
+const pcs = (v, d = 1) => `${signed(v * 100, d)}%`;
+const pct1 = (v) => `${(v * 100).toFixed(1)}%`;
 const distPts = (WS.distThen - WS.distNow) * 100;
 
-const ASSUMPTIONS = [
-  { id: 'forecast', title: 'Our forecast represents demand.', status: 'False here', tone: 'no',
-    why: `The forecast is last year’s shipments plus 3%. But shipments are what distributors bought, not what shoppers bought. In the week of ${weekLabel(GAP.worst)} they bought ${pc(Math.abs(GAP.gap))} ${GAP.gap > 0 ? 'more' : 'less'} than shoppers did, because distributors load up before quarter-end. Next year’s forecast inherits all of it.` },
-  { id: 'promo', title: 'More promotion creates more profitable growth.', status: 'Cannot tell yet', tone: 'maybe',
-    why: `Promotion did add volume (${signed(D.pts.promo)} points). Whether it was profitable depends on the discount and on what happened to shelf availability afterward, and this data has no margin on promoted cases. That is a test to run, not a fact to assume.` },
-  { id: 'distributors', title: 'Distributors order what they expect to sell.', status: 'False here', tone: 'no',
-    why: `In the five weeks before the April price increase they bought ${pc(Math.abs(R_PRE))} ${R_PRE > 0 ? 'more' : 'less'} than they sold, then ${pc(Math.abs(R_POST))} ${R_POST > 0 ? 'more' : 'less'} for five weeks after. Over the last 13 weeks they bought ${pc(Math.abs(R_NOW), 1)} ${R_NOW < 0 ? 'less' : 'more'} than they sold, against ${pc(Math.abs(R_THEN), 1)} ${R_THEN < 0 ? 'less' : 'more'} a year ago. They were managing stock, not tracking shoppers.` },
-  { id: 'sales', title: 'The salesperson knows the account best.', status: 'Partly true', tone: 'maybe',
-    why: 'Account knowledge is real and valuable. But each person you heard saw one corner. None of them could see the market-wide ordering swing. Local knowledge and a market-wide view answer different questions.' },
-  { id: 'distribution', title: 'Losing distribution costs us volume one for one.', status: 'False here', tone: 'no',
-    why: `Distribution fell about ${distPts.toFixed(0)} points, roughly ${((distPts / (WS.distThen * 100)) * 100).toFixed(0)}% of our stores. The modelled volume cost was about ${abs1(D.pts.distribution)} points, closer to half that. Shoppers move to other stores or other items, and stores that kept some of our range kept some of our sales.` },
+const BELIEFS = [
+  { id: 'forecast', title: 'Our forecast represents demand.', test: T.forecast,
+    why: (t) => `In its first full year it ran ${pcs(t.biasYearOne)} against what shoppers bought, about right. Over the last 26 weeks it ran ${pc(t.biasRecent)} high, and across all ${t.weeks} weeks it landed within 5% in only ${t.within5}. It is last year’s shipments (a 3-week average) plus 3%, so it carries the distributors’ loading, and it assumed growth that was not there. Right on average is no help in the week you place the order.` },
+  { id: 'distributors', title: 'Distributors order what they expect to sell.', test: T.distributors,
+    why: (t) => `Over a year they bought ${pcs(t.gapYear)} versus what shoppers bought, and in ${t.ordWithin3} of ${t.ordinary} ordinary weeks they were within 3%. But the last two weeks of every quarter ran ${pcs(t.quarterEnd)}, the first two ${pcs(t.quarterStart)}, and the five weeks before the April price increase ${pcs(t.preBuy)}, then ${pcs(t.postBuy)} for five weeks after (${t.quarterEndInPreBuy} of those five weeks were also quarter-end weeks). They track shoppers, except when they have a reason not to.` },
+  { id: 'promo', title: 'Promotion adds volume.', test: T.promo,
+    why: (t) => `It did: about ${abs1(t.pts)} points of volume in this comparison. Whether it paid is a different question, and this data cannot answer it, because it holds no discount depth or margin by week. As a test to run: if a store on promotion sells about ${(t.perStore * 100).toFixed(0)}% more (the lab’s assumption), the discount has to cost less than about $${t.breakEven.toFixed(0)} a case (${pct1(t.breakEvenPct)} of the price) for it to pay back.` },
+  { id: 'field', title: 'The people closest to the account see what matters.', test: T.field,
+    why: (t) => `Three of the four people you heard described a force the data confirms: Chain X (${abs1(t.chain)} points of the decline), the rival launch (${abs1(t.rival)}) and distributor destocking (${abs1(t.stock)}). The planner was right too: nothing about the forecast had changed, and that was the problem. Each saw one corner of a ${abs1(t.total)}-point drop. Nobody saw all of it.` },
+  { id: 'distribution', title: 'Losing distribution costs us volume one for one.', test: T.distribution,
+    why: (t) => `Distribution fell about ${distPts.toFixed(0)} points (${((distPts / (WS.distThen * 100)) * 100).toFixed(0)}% of our stores). Comparing each week with the same week a year ago puts the effect at about ${t.slope.toFixed(1)} for each 1% of stores, give or take ${t.half.toFixed(1)}. That range holds both one-for-one (1.0) and half that (0.5), because the Chain X cut and the rival’s launch landed within weeks of each other and cannot be pulled apart. The lab’s own answer key uses ${t.model}. Real life has no answer key, so this is an estimate to make carefully, not a fact to assume.` },
+  { id: 'shelves', title: 'Promotions are what empty our shelves.', test: T.shelves,
+    why: (t) => `During the six-week promotion run the out-of-stock rate was ${pct1(t.during)}, against ${pct1(t.duringLast)} in the same weeks a year ago. It rose to ${pct1(t.after)} only afterward, from the week of ${weekLabel(t.afterFrom)} (${pct1(t.afterLast)} a year ago). The timing points at distributors cutting orders too hard late in the destock, not at the promotion. The data cannot prove that, but it does not point at the promotion either.` },
 ];
 
 const assume = {
@@ -372,36 +374,58 @@ const assume = {
     const { state, save } = ctx;
     const root = h('div', { class: 'screen stack-l' });
     const paint = () => {
-      const picked = ASSUMPTIONS.find((a) => a.id === state.assume);
+      const bets = state.bets || (state.bets = {});
+      const all = BELIEFS.every((b) => bets[b.id]);
       const from = 104, to = 155;
       const dep = ma3(slice('dep', from - 2, to)).slice(2), ship = ma3(slice('ship', from - 2, to)).slice(2);
-      mount(root,
-        h('div', { class: 'stack' },
-          ...head({ lens: 'biz', exp: 1, stage: 'Understanding', title: 'What is everyone assuming?', wide: true }),
-          h('p', { class: 'prose' }, 'Five beliefs sit inside how Ridgeline plans. Nobody wrote them down, and most of the time nobody questions them. Which would you challenge first?')),
-        choices({ name: 'Assumptions', items: ASSUMPTIONS.map((a) => ({ id: a.id, title: a.title })), value: state.assume, onPick: (id) => { state.assume = id; save(); paint(); } }),
-        picked ? h('div', { class: 'finding reveal' },
+      const hits = BELIEFS.filter((b) => bets[b.id] === b.test.verdict).length;
+      const count = (id) => BELIEFS.filter((b) => b.test.verdict === id).length;
+
+      const head1 = h('div', { class: 'stack' },
+        ...head({ lens: 'biz', exp: 1, stage: 'Understanding', title: 'What is everyone assuming?', wide: true }),
+        h('p', { class: 'prose' }, state.checked ? 'Six beliefs sit inside how Ridgeline plans. Here is how each one held up against the data, and how your call compared. Each can land in one of four places:' : 'Six beliefs sit inside how Ridgeline plans. Nobody wrote them down, and most are never tested. Before you see the data, make a call on each one. Each can land in one of four places:'),
+        h('div', { class: 'legend' }, VERDICTS.map((v) => h('div', { class: 'legend-i' }, h('span', { class: `chip ${v.tone}` }, v.short), h('span', { class: 'small' }, v.def)))));
+
+      if (!state.checked) {
+        mount(root, head1,
+          h('div', { class: 'beliefs' }, BELIEFS.map((b) => h('div', { class: 'belief' },
+            h('p', { class: 'belief-q' }, b.title),
+            seg(VERDICTS.map((v) => [v.id, v.short]), bets[b.id], (id) => { bets[b.id] = id; save(); paint(); })))),
+          h('div', { class: 'actions' }, h('span', { class: 'micro' }, `${BELIEFS.filter((b) => bets[b.id]).length} of ${BELIEFS.length} called`),
+            h('div', { class: 'actions-r' }, h('button', { class: 'btn', type: 'button', disabled: !all, onClick: () => { state.checked = true; save(); paint(); window.scrollTo({ top: 0 }); } }, 'Check against the data', h('span', { 'aria-hidden': 'true' }, '→')))));
+        return;
+      }
+
+      mount(root, head1,
+        h('div', { class: 'finding reveal' },
           h('div', { class: 'finding-head' },
-            h('div', { class: `chip ${picked.tone}` }, picked.status),
-            h('p', { class: 'says' }, picked.title)),
-          h('p', { class: 'prose' }, picked.why),
-          picked.id === 'forecast' || picked.id === 'distributors' ? lineChart({
+            h('div', { class: 'micro' }, `You matched the data on ${hits} of ${BELIEFS.length}`),
+            h('p', { class: 'says' }, `${count('holds')} holds, ${count('conditions')} hold only in some conditions, ${count('unsupported')} not supported, ${count('untestable')} can’t be tested here.`)),
+          h('p', { class: 'prose' }, 'Most of these are not wrong. They are true on average and fail in the weeks that decide a quarter, which is exactly where a plan built on them gets hurt.')),
+        h('div', { class: 'beliefs reveal' }, BELIEFS.map((b) => {
+          const v = VERDICT[b.test.verdict], mine = VERDICT[bets[b.id]], hit = mine.id === v.id;
+          return h('div', { class: `belief result${hit ? ' hit' : ''}` },
+            h('p', { class: 'belief-q' }, b.title),
+            h('div', { class: 'belief-chips' },
+              h('span', { class: `chip ${v.tone}` }, v.short),
+              h('span', { class: 'micro' }, hit ? 'You called it' : `You said: ${mine.short}`)),
+            h('p', { class: 'prose' }, b.why(b.test)));
+        })),
+        h('div', { class: 'stack-s reveal' },
+          h('h3', { class: 'h3' }, 'Where two of them break'),
+          lineChart({
             n: dep.length, height: 240, yMin: 2800, yFmt: (v) => int(v), direct: true,
             series: [
               { name: 'Shipments: what distributors bought', short: 'Shipments', values: ship, color: 'var(--s-current)', dash: '5 5', width: 2 },
               { name: 'Depletions: what shoppers bought', short: 'Shoppers', values: dep, color: 'var(--s-actual)', width: 2.5 },
             ],
             fills: [{ a: 0, b: 1, posClass: 'up', negClass: 'down' }],
-            markers: [{ i: GAP.worst - from, text: `Quarter-end loading` }, ...(picked.id === 'distributors' ? [{ i: PRICE_WEEK - from, text: 'Price increase', dy: 18 }] : [])],
+            markers: [{ i: GAP.worst - from, text: 'Quarter-end loading' }, { i: PRICE_WEEK - from, text: 'Price increase', dy: 18 }],
             ticks: ticksFor(from, to, 13), xLabel: (i) => `Week of ${weekLabel(from + i)}`, tipFmt: (v) => `${int(v)} cases`,
-            desc: 'Shipments and shopper purchases over a year. The shaded gap between them is distributor loading (blue) and destocking (grey).',
-          }) : null) : null,
-        picked ? h('div', { class: 'stack-s reveal' },
-          h('h3', { class: 'h3' }, 'The other four'),
-          table(['Belief', 'What the data says'],
-            ASSUMPTIONS.filter((a) => a.id !== picked.id).map((a) => [a.title, h('span', { class: `chip ${a.tone}` }, a.status)]))) : null,
-        picked ? note('The point', 'It is not which one you picked. It is that none of these were visible until someone asked. A forecast built on the first belief will keep making the same mistake, however fast it runs.') : null,
-        actions(ctx, { label: 'Where could AI help?', disabled: !picked }));
+            desc: 'Shipments and shopper purchases over a year. The two track each other closely except around quarter-end and the price increase. The shaded gap is distributor loading (blue) and destocking (grey).',
+          })),
+        note('The point', 'A belief is not wrong because nobody tested it. It is that none of these were visible until someone asked, and several hold on average and fail at the moments that matter. A forecast built on them will keep making the same mistake, however fast it runs.'),
+        actions(ctx, { label: 'Where could AI help?' }));
     };
     paint();
     return root;

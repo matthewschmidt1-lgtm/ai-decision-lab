@@ -101,7 +101,7 @@ function generate() {
 
   // Shipments are what distributors buy from the brand. They are not what consumers buy.
   // Distributors load before quarter-end, loaded extra last autumn, and are now working that
-  // stock down. The brand's forecast is built from last year's shipments, so it inherits all of it.
+  // stock down. The brand's forecast is built from last year's shipments (a 3-week average, which softens the quarter-end spikes), so it inherits the rest.
   const adjAt = (u) => {
     const w = u % 13;
     const cycle = (w === 11 || w === 12) ? 0.10 : (w === 0 || w === 1) ? -0.08 : 0;

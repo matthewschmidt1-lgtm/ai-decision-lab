@@ -2,6 +2,10 @@
 
 An interactive lab for nontechnical CPG leaders. They start with a business problem (a bourbon brand down 8% in Texas), find the decision worth improving, open the hood on a real forecasting model, and design the pilot that would test it. **AI is not the product. Better decisions are.**
 
+- Live: https://ai-decision-lab-production-56eb.up.railway.app (a second domain, `ai-decision-lab-production.up.railway.app`, also serves it)
+- Repo: github.com/matthewschmidt1-lgtm/ai-decision-lab (public, branch `main`)
+- Railway: project `brave-joy`, service `ai-decision-lab`
+
 Sibling of Decision OS, Friction and Matthew's site. It carries their philosophy: Business / System / People lenses, the learning loop (Signal → Understanding → Decision → Action → Learning), the adoption loop (Value → AI fit → System readiness → People → Pilot → Measure → Scale or stop), and "What is everyone assuming?".
 
 ## Hard constraints
@@ -19,6 +23,7 @@ Sibling of Decision OS, Friction and Matthew's site. It carries their philosophy
   - **Score replays against what shoppers wanted** (`want`), not a smooth hidden series, and tune every forecast's cushion the same way.
   - **Uncertainty on every headline**: block-bootstrap 90% ranges, rolling-origin folds, out-of-sample forecast bands. A range that crosses zero is reported as "cannot tell".
   - **Computed text, not canned text.** Any sentence that interprets a number (competitor shift, overconfidence, learning-rate limit, "AI vs simple") must be generated from the numbers, including the case where it comes out the other way.
+  - **Teaching beliefs must be decidable and not rigged.** The "What is everyone assuming?" screen (`js/beliefs.js`) has six beliefs, each tested with a measurable rule on the observable data, with four verdicts (holds / some conditions / not supported / can't be tested). At least one must genuinely hold and several must be "true on average, false where it counts"; a lesson where every answer is "false" teaches the wrong thing. Learners call each verdict before the data is shown. Verdicts and numbers are computed, and tests assert they never read the hidden `demand`/`want`/`expect` columns.
   - **Label oracles.** The decomposition and the "learned vs true" table use hidden generator truth; the screens say so.
   - **Bootstraps use circular blocks** (block starts uniform over all weeks), otherwise edge weeks are under-sampled and false alarms understated. `tests/run.html` asserts the simulated worlds are unbiased.
   - **The pilot simulation is null-aware**: it reports power and the false-alarm rate, calls a win halfway between nothing and the target, and its power depends on how many independent series the pilot covers (the headline uses a stress case where only a third of them average out noise). A target above the best case the back-test allowed is flagged.
@@ -46,7 +51,9 @@ After a visible change: check the console, desktop (1280) and 375px, and `docume
 
 ## Deploy
 
-Same pattern as the sibling projects: GitHub `matthewschmidt1-lgtm/ai-decision-lab`, Railway deploys from `main` on every push. Railway runs `scripts/serve-site.sh`, which copies only the public site (`index.html`, `robots.txt`, `serve.json`, `css/`, `js/`) into `dist/` and serves it with `npx serve -s dist`. Tests, scripts and these notes are not deployed. If you add a new top-level public file, add it to that script. `serve.json` sets a strict CSP (`script-src 'self'`, no third-party origins, no inline scripts): do not add inline scripts, `setAttribute('style', ...)`, or external fonts without updating it. This Mac has no `gh` or Railway CLI, so the repo and the Railway service are created in the web dashboards.
+GitHub `matthewschmidt1-lgtm/ai-decision-lab`, deployed on Railway from `main`. **Auto deploy is currently disabled on the Railway service** (unlike the sibling sites), so a push does not update the live site until it is enabled (service Settings → Source → Enable) or a deploy is triggered by hand. Railway runs `scripts/serve-site.sh`, which copies only the public site (`index.html`, `robots.txt`, `serve.json`, `css/`, `js/`) into `dist/` and serves it with `npx serve -s dist`. Tests, scripts and these notes are not deployed, and `/tests/run.html` falls through to the app. If you add a new top-level public file, add it to that script.
+
+`serve.json` sets a strict CSP (`script-src 'self'`, no third-party origins, no inline scripts) and security headers. Do not add inline scripts, `setAttribute('style', ...)`, or external fonts without updating it. To check a change against the production headers, serve the folder locally with the headers from `serve.json` and look for `securitypolicyviolation` events. This Mac has no `gh` or Railway CLI, so the repo and the Railway service were created in the web dashboards (new Railway project: GitHub Repository, then paste the repo URL if the picker will not advance; then Settings → Networking → Generate Domain).
 
 ## Map
 
@@ -79,4 +86,4 @@ If you change the generator, re-run the tests and re-check the headline (-8%), t
 
 ## Roadmap Matthew might set
 
-A grain-level scenario (distributor x SKU series) so the finer-grain hypothesis can be tested rather than asserted, a second scenario that exercises a different capability (retrieval or generation, e.g. research synthesis), and a Railway deploy like the siblings (`package.json` with `serve`, `railway.json`) once the loop feels excellent.
+A grain-level scenario (distributor x SKU series) so the finer-grain hypothesis can be tested rather than asserted, a second scenario that exercises a different capability (retrieval or generation, e.g. research synthesis), and enabling Railway auto deploy so pushes go live.
