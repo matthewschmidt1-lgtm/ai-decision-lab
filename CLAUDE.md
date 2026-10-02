@@ -51,7 +51,7 @@ After a visible change: check the console, desktop (1280) and 375px, and `docume
 
 ## Deploy
 
-GitHub `matthewschmidt1-lgtm/ai-decision-lab`, deployed on Railway from `main`. **Auto deploy is currently disabled on the Railway service** (unlike the sibling sites), so a push does not update the live site until it is enabled (service Settings → Source → Enable) or a deploy is triggered by hand. Railway runs `scripts/serve-site.sh`, which copies only the public site (`index.html`, `robots.txt`, `serve.json`, `css/`, `js/`) into `dist/` and serves it with `npx serve -s dist`. Tests, scripts and these notes are not deployed, and `/tests/run.html` falls through to the app. If you add a new top-level public file, add it to that script.
+GitHub `matthewschmidt1-lgtm/ai-decision-lab`, deployed on Railway from `main`. **Auto deploy is enabled on the Railway service** (service Settings → Source shows "Auto deploys when pushed to GitHub"). If a push does not deploy, the dashboard toggle can look right while the trigger is stale: Disable then Enable it, and check the GitHub connection. Railway runs `scripts/serve-site.sh`, which copies only the public site (`index.html`, `robots.txt`, `serve.json`, `css/`, `js/`) into `dist/` and serves it with `npx serve -s dist`. Tests, scripts and these notes are not deployed, and `/tests/run.html` falls through to the app. If you add a new top-level public file, add it to that script.
 
 `serve.json` sets a strict CSP (`script-src 'self'`, no third-party origins, no inline scripts) and security headers. Do not add inline scripts, `setAttribute('style', ...)`, or external fonts without updating it. To check a change against the production headers, serve the folder locally with the headers from `serve.json` and look for `securitypolicyviolation` events. This Mac has no `gh` or Railway CLI, so the repo and the Railway service were created in the web dashboards (new Railway project: GitHub Repository, then paste the repo URL if the picker will not advance; then Settings → Networking → Generate Domain).
 
@@ -86,4 +86,4 @@ If you change the generator, re-run the tests and re-check the headline (-8%), t
 
 ## Roadmap Matthew might set
 
-A grain-level scenario (distributor x SKU series) so the finer-grain hypothesis can be tested rather than asserted, a second scenario that exercises a different capability (retrieval or generation, e.g. research synthesis), and enabling Railway auto deploy so pushes go live.
+A grain-level scenario (distributor x SKU series) so the finer-grain hypothesis can be tested rather than asserted, a second scenario that exercises a different capability (retrieval or generation, e.g. research synthesis).
