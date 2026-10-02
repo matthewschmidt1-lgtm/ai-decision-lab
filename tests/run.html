@@ -1,0 +1,215 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>AI Decision Lab: model tests</title>
+<style>
+  body { font: 15px/1.6 ui-monospace, Menlo, monospace; max-width: 860px; margin: 40px auto; padding: 0 20px; }
+  .pass { color: #1E7F4F; } .fail { color: #B3261E; font-weight: 700; }
+  h1 { font: 700 20px system-ui; } h2 { font: 650 15px system-ui; margin: 22px 0 6px; }
+</style>
+<h1>AI Decision Lab: model tests</h1>
+<div id="out"></div>
+<script type="module">
+import * as D from '../js/data.js';
+import * as F from '../js/forecast.js';
+import * as V from '../js/value.js';
+import { recipeOf } from '../js/screens/common.js';
+
+const out = document.getElementById('out');
+let failed = 0;
+const section = (name) => { const h = document.createElement('h2'); h.textContent = name; out.append(h); };
+const t = (name, fn) => {
+  let ok = false, msg = '';
+  try { const r = fn(); ok = r === true || r === undefined; if (!ok) msg = String(r); } catch (e) { ok = false; msg = e.message; }
+  if (!ok) failed++;
+  const el = document.createElement('div');
+  el.className = ok ? 'pass' : 'fail';
+  el.textContent = `${ok ? 'PASS' : 'FAIL'}  ${name}${msg ? '  → ' + msg : ''}`;
+  out.append(el);
+};
+const eq = (c, m) => (c ? true : m);
+const G = F.ALL_GROUPS;
+
+// Mutate the world, run a check, and put everything back.
+function perturbed(fn, check) {
+  const saved = D.WEEKS.map((w) => ({ ...w }));
+  fn();
+  let r;
+  try { r = check(); } finally { saved.forEach((s, i) => Object.assign(D.WEEKS[i], s)); }
+  return r;
+}
+
+section('The story the lab tells');
+const dec = D.decompose();
+t('Shipments are down about 8% over the last 13 weeks', () => eq(dec.pct < -7.5 && dec.pct > -8.5, `got ${dec.pct.toFixed(2)}`));
+t('Shopper pull-through fell by less than shipments', () => eq(dec.depPct > dec.pct + 2, `dep ${dec.depPct.toFixed(2)} vs ship ${dec.pct.toFixed(2)}`));
+t('Decomposition points add up to the headline', () => {
+  const sum = Object.values(dec.pts).reduce((a, b) => a + b, 0);
+  return eq(Math.abs(sum - dec.pct) < 1e-6, `sum ${sum.toFixed(4)} vs ${dec.pct.toFixed(4)}`);
+});
+t('Data: 156 weeks, positive, and shoppers wanted at least what they bought', () => eq(D.WEEKS.length === 156 && D.WEEKS.every((w) => w.dep > 0 && w.want >= w.dep), 'bad weeks'));
+t('The noise floor is real: nothing can reliably beat it', () => {
+  const e = F.evaluate(F.trainModel(G)), f = D.noiseFloor();
+  return eq(f > 0.02 && f < 0.07 && e.wapeAI > f * 0.9 && e.wapeSimple > f * 0.9, `floor ${f}, ai ${e.wapeAI}, simple ${e.wapeSimple}`);
+});
+t('Estimated distributor stock rises before the price increase and falls after', () => {
+  const s = D.inventoryEstimate();
+  return eq(s[129] > s[110] && s[129] > s[155], `${s[110]} ${s[129]} ${s[155]}`);
+});
+
+section('No peeking: the model must not see the future');
+t('Time is cut into learn, choose and exam, in order, with a gap', () => eq(D.TRAIN_START < D.VALID_START - D.EMBARGO && D.VALID_START < D.HOLDOUT_START && D.HOLDOUT_START < D.N && D.EMBARGO >= 4, 'slices out of order'));
+t('Every input is known well ahead: moving anything newer than that changes no feature', () => {
+  const t0 = 120, before = F.rowFor(t0, G).x.join(',');
+  return perturbed(() => {
+    for (let i = t0 - 4; i < D.N; i++) { D.WEEKS[i].dep *= 3; D.WEEKS[i].dist *= 0.5; }   // sales and distribution: reported with a lag
+    for (let i = 0; i < D.N; i++) D.WEEKS[i].price *= 2;                                 // shelf price is never an input
+  }, () => eq(before === F.rowFor(t0, G).x.join(','), 'a feature changed when only data newer than the lag changed'));
+});
+t('The simple forecast and the AI forecast do not move when data newer than the lag changes', () => {
+  const m = F.trainModel(G), t0 = 130;
+  const a = [F.simpleForecast(t0), F.predict(m, t0)];
+  return perturbed(() => { for (let i = t0 - 4; i < D.N; i++) { D.WEEKS[i].dep *= 3; D.WEEKS[i].dist *= 0.5; } },
+    () => { const b = [F.simpleForecast(t0), F.predict(m, t0)]; return eq(a[0] === b[0] && a[1] === b[1], `${a} vs ${b}`); });
+});
+t('Hidden truth never reaches the model: demand, want, expect and oos do not move any feature', () => {
+  const t0 = 125, before = F.rowFor(t0, G).x.join(',');
+  return perturbed(() => D.WEEKS.forEach((w) => { w.demand *= 2; w.want *= 2; w.expect *= 2; w.oos = 0.3; }),
+    () => eq(before === F.rowFor(t0, G).x.join(','), 'features read hidden fields'));
+});
+t('The choosing model never learns from anything at or after the gap before the choosing weeks', () => {
+  const a = F.dataset(G, D.VALID_START), cut = D.VALID_START - D.EMBARGO;
+  return perturbed(() => { for (let i = cut; i < D.N; i++) D.WEEKS[i].dep *= 2; },
+    () => { const b = F.dataset(G, D.VALID_START); return eq(a.yc.every((v, i) => v === b.yc[i]) && a.Z.every((r, i) => r.every((v, j) => v === b.Z[i][j])), 'training data changed when only later weeks changed'); });
+});
+t('The final model never learns from the exam weeks or the gap before them', () => {
+  const a = F.dataset(G, D.HOLDOUT_START), cut = D.HOLDOUT_START - D.EMBARGO;
+  return perturbed(() => { for (let i = cut; i < D.N; i++) D.WEEKS[i].dep *= 2; },
+    () => eq(a.yc.every((v, i) => v === F.dataset(G, D.HOLDOUT_START).yc[i]), 'training data changed when only exam weeks changed'));
+});
+t('Rolling-origin folds never train on their own test window', () => {
+  const r0 = F.rollingOrigin(G).map((x) => x.wapeAI);
+  return perturbed(() => { for (let i = 130; i < D.N; i++) D.WEEKS[i].dep *= 1.5; },
+    () => { const r1 = F.rollingOrigin(G).map((x) => x.wapeAI); return eq(Math.abs(r0[0] - r1[0]) < 1e-12 && Math.abs(r0[1] - r1[1]) < 1e-12 && Math.abs(r0[2] - r1[2]) < 1e-12, 'early folds changed when only later weeks changed'); });
+});
+t('Cushions chosen on the choosing weeks do not move when the exam weeks change', () => {
+  const m = F.trainModel(G), c0 = JSON.stringify(V.costCurves(m).chosen);
+  return perturbed(() => { for (let i = D.HOLDOUT_START; i < D.N; i++) { D.WEEKS[i].dep *= 1.4; D.WEEKS[i].want *= 1.4; } },
+    () => eq(c0 === JSON.stringify(V.costCurves(F.trainModel(G)).chosen), 'chosen cushions depend on the exam'));
+});
+t('The recipe the lab uses is the locked one, or the one set in advance', () => {
+  const def = recipeOf({ locked: null }), lk = recipeOf({ locked: { features: ['price'], caution: 2 } });
+  return eq(def.groups.length === G.length && def.l2 === F.DEFAULT_CAUTION && lk.groups.join() === 'price' && lk.l2 === 2, JSON.stringify([def, lk]));
+});
+
+section('The learning is real');
+const m = F.trainModel(G);
+const exact = F.solveExact(m.d.Z, m.d.yc, m.l2);
+t('Gradient descent reaches the algebraic answer, with the same caution', () => {
+  const gap = Math.max(...exact.w.map((v, i) => Math.abs(v - m.w[i])));
+  return eq(gap < 0.01, `max weight gap ${gap.toFixed(4)}`);
+});
+const dataLoss = (w, b) => { let f = 0; m.d.Z.forEach((z, i) => { let p = b; z.forEach((v, j) => { p += w[j] * v; }); f += (p - m.d.yc[i]) ** 2 / m.d.Z.length; }); return f; };
+t('Training from a random start ends within 5% of the best loss any model of this shape can reach', () => {
+  const floor = dataLoss(exact.w, exact.b);
+  const w0 = m.names.map((_, j) => { const x = Math.sin((j + 1) * 12.9898) * 43758.5453; return ((x - Math.floor(x)) - 0.5) * 0.36; });
+  const r = F.gradientDescent(m.d.Z, m.d.yc, { lr: 0.1, steps: 400, w0, l2: m.l2 });
+  const end = r.losses[r.losses.length - 1];
+  return eq(end < floor * 1.05 && end < r.losses[0] * 0.5, `start ${r.losses[0]}, end ${end}, floor ${floor}`);
+});
+t('The stability limit is real, with caution: below it training converges, above it it blows up', () => {
+  const thr = F.maxStableRate(m.d.Z, m.l2);
+  const ok = F.gradientDescent(m.d.Z, m.d.yc, { lr: thr * 0.9, steps: 300, l2: m.l2 });
+  const bad = F.gradientDescent(m.d.Z, m.d.yc, { lr: thr * 1.2, steps: 300, l2: m.l2 });
+  const a = ok.losses[ok.losses.length - 1], b = bad.losses[bad.losses.length - 1];
+  return eq(a < ok.losses[0] && !(b < 1e3), `thr ${thr}, stable end ${a}, unstable end ${b}`);
+});
+t('More caution pulls every weight toward zero', () => {
+  const free = F.trainModel(G, { l2: 0 }), careful = F.trainModel(G, { l2: 2 });
+  return eq(careful.w.every((v, i) => Math.abs(v) <= Math.abs(free.w[i]) + 1e-9), 'a weight grew under caution');
+});
+t('Features: every combination trains and scores, at every caution level', () => {
+  for (const [l2] of F.CAUTION_LEVELS) for (let mask = 1; mask < 16; mask++) {
+    const g = G.filter((_, i) => mask & (1 << i)), e = F.evaluateValid(g, l2);
+    if (!(e.wapeAI > 0 && e.wapeAI < 0.6)) return `bad for ${g} at ${l2}`;
+  }
+});
+
+section('The claims about accuracy');
+const ev = F.evaluate(m);
+t('A simple no-AI forecast of shopper sales beats today’s shipment-based forecast', () => eq(ev.wapeSimple < ev.wapeCurrent, `${ev.wapeSimple} vs ${ev.wapeCurrent}`));
+t('The AI forecast beats today’s forecast on the exam weeks', () => eq(ev.wapeAI < ev.wapeCurrent, `${ev.wapeAI} vs ${ev.wapeCurrent}`));
+t('Today’s forecast runs high (it forecasts shipments, which include loading)', () => eq(ev.biasCurrent > 0.03, `bias ${ev.biasCurrent}`));
+t('Rolling origin: five folds, all forecasts positive and sensible', () => {
+  const r = F.rollingOrigin(G);
+  return eq(r.length === 5 && r.every((x) => x.wapeAI > 0.01 && x.wapeAI < 0.3 && x.wapeSimple > 0.01 && x.wapeCurrent > 0.01), JSON.stringify(r));
+});
+t('Bootstrap interval contains the point estimate and is not degenerate', () => {
+  const b = F.bootstrapReduction(ev.rows, 'current');
+  return eq(b.lo < b.point && b.point < b.hi && b.hi - b.lo > 0.02, JSON.stringify(b));
+});
+t('The out-of-sample forecast band is no narrower than the in-sample one', () => eq(F.oosSigma(G) >= m.sigma * 0.9, `${F.oosSigma(G)} vs ${m.sigma}`));
+
+section('The economics');
+const cv = V.costCurves(m);
+t('Every cost curve is U-shaped: the best cushion is inside the range', () => {
+  for (const k of ['ai', 'simple', 'current']) {
+    const best = cv[k].reduce((a, p) => (p.cost < a.cost ? p : a), cv[k][0]);
+    if (!(best.c > V.CUSHIONS[0] && best.c < V.CUSHIONS[V.CUSHIONS.length - 1])) return `${k} best ${best.c}`;
+  }
+});
+t('The chosen cushion is not simply the exam’s best (it was picked without seeing the exam)', () => eq(['ai', 'simple', 'current'].some((k) => cv.chosen[k] !== cv.hindsight[k]), 'chosen equals hindsight for every forecast'));
+t('The bottom of a cost curve is flat: a range of cushions is within 10% of the best', () => { const [a, b] = V.flatBottom(cv.ai); return eq(b > a, `${a} ${b}`); });
+const gNo = V.pairGain(m, 'current', 'simple'), gAi = V.pairGain(m, 'simple', 'ai'), gAT = V.pairGain(m, 'current', 'ai');
+t('Gains add up under every cushion rule: any-method gain = no-AI gain + AI’s extra', () => {
+  for (let i = 0; i < 3; i++) if (Math.abs(gAT.regimes[i][1] - (gNo.regimes[i][1] + gAi.regimes[i][1])) > 1) return `rule ${i}`;
+});
+t('Every gain estimate sits inside its own range, and the range covers every cushion rule', () => {
+  for (const g of [gNo, gAi, gAT]) { const vals = g.regimes.map((r) => r[1]); if (!(g.lo <= g.point && g.point <= g.hi && g.lo <= Math.min(...vals) + 1e-6 && g.hi >= Math.max(...vals) - 1e-6)) return JSON.stringify(g); }
+});
+t('Zero adoption means zero gross value and net equals minus running cost', () => {
+  const v = V.potentialValue({ ...V.DEFAULTS, adoption: 0, vs: 'current' }, 100000);
+  return eq(v.gross === 0 && v.net === -v.run, JSON.stringify(v));
+});
+t('A negative gain is a cost, not a free zero', () => eq(V.potentialValue({ ...V.DEFAULTS, vs: 'simple' }, -50000).planning < 0, 'negative gain was floored'));
+t('Planner time is not counted as AI value against a simple no-AI forecast', () => eq(V.potentialValue({ ...V.DEFAULTS, vs: 'simple' }, 0).time === 0 && V.potentialValue({ ...V.DEFAULTS, vs: 'current' }, 0).time > 0, 'time counted wrongly'));
+t('Added markets earn less than the first and cost something', () => {
+  const one = V.potentialValue({ ...V.DEFAULTS, markets: 1, vs: 'current' }, 100000), six = V.potentialValue({ ...V.DEFAULTS, markets: 6, vs: 'current' }, 100000);
+  return eq(six.gross < one.gross * 6 && six.run > one.run, 'markets scale linearly');
+});
+t('Break-even multiple is consistent: at that multiple, net is about zero', () => {
+  const gain = 80000, p = { ...V.DEFAULTS, vs: 'current' }, M = V.breakEvenMultiple(p, gain);
+  const v = V.potentialValue({ ...p, holds: 1, grain: M }, gain);
+  return eq(Math.abs(v.net) < 5, `net ${v.net}, M ${M}`);
+});
+t('The value range includes the cost to run and the gain’s own range', () => {
+  const r = V.valueRange(V.DEFAULTS, { lo: 20000, point: 80000, hi: 140000 });
+  return eq(r.low.net <= r.base.net && r.base.net <= r.high.net && r.low.run > r.base.run && r.high.run < r.base.run, 'range wrong');
+});
+
+section('Would a pilot be able to tell?');
+t('Pilot simulation is deterministic', () => { const a = V.simulatePilot(m, 13, 0.1), b = V.simulatePilot(m, 13, 0.1); return eq(a.power === b.power && a.falseAlarm === b.falseAlarm, 'not deterministic'); });
+t('The simulated worlds are unbiased: mean result equals the true effect (circular blocks, no edge effect)', () => {
+  const s = V.simulatePilot(m, 13, 0.1, { units: 12, runs: 3000 });
+  const mean = (w) => w.reductions.reduce((a, b) => a + b, 0) / w.reductions.length;
+  return eq(Math.abs(mean(s.worlds[0]) - 0.1) < 0.004 && Math.abs(mean(s.worlds[2])) < 0.004 && Math.abs(mean(s.worlds[1]) - 0.05) < 0.004, `${mean(s.worlds[0])} ${mean(s.worlds[1])} ${mean(s.worlds[2])}`);
+});
+t('At the pilot’s real grain, longer pilots and more series both raise power and cut false alarms', () => {
+  const short = V.simulatePilot(m, 8, 0.1, { units: 12 }), longer = V.simulatePilot(m, 26, 0.1, { units: 12 }), wide = V.simulatePilot(m, 8, 0.1, { units: 36 });
+  return eq(longer.power > short.power && wide.power > short.power && longer.falseAlarm <= short.falseAlarm && wide.falseAlarm <= short.falseAlarm,
+    `short ${short.power}/${short.falseAlarm}, longer ${longer.power}/${longer.falseAlarm}, wide ${wide.power}/${wide.falseAlarm}`);
+});
+t('A single market-level series cannot tell a 10% gain from nothing, however long the pilot', () => {
+  const s = V.simulatePilot(m, 26, 0.1, { units: 1 });
+  return eq(s.power < 0.8 || s.falseAlarm > 0.1, `power ${s.power}, false alarm ${s.falseAlarm}`);
+});
+t('A well-sized pilot at the real grain has high power and a low false-alarm rate', () => {
+  const s = V.simulatePilot(m, 26, 0.1, { units: 36 });
+  return eq(s.power > 0.8 && s.falseAlarm < 0.1, `power ${s.power}, false alarm ${s.falseAlarm}`);
+});
+
+const summary = document.createElement('h1');
+summary.textContent = failed ? `${failed} FAILED` : 'ALL PASSED';
+summary.className = failed ? 'fail' : 'pass';
+summary.id = 'summary';
+out.prepend(summary);
+</script>

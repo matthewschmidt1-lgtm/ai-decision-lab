@@ -1,0 +1,17 @@
+{
+  "name": "ai-decision-lab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "An interactive lab for CPG leaders: find where AI can improve a real decision, open the hood on how it works, and design the pilot that would show whether it works.",
+  "type": "module",
+  "scripts": {
+    "start": "sh scripts/serve-site.sh",
+    "dev": "python3 scripts/dev.py 4180"
+  },
+  "dependencies": {
+    "serve": "^14.2.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
