@@ -1,6 +1,6 @@
 // A real forecasting model, small enough to read in one sitting.
 //
-// It starts from the simple forecast (same week last year, scaled by the recent trend), then learns
+// It forecasts depletions. It starts from the simple forecast (same week last year, scaled by the recent trend), then learns
 // corrections to it: whether the trend is over- or under-trusted, and what the announced price, the
 // promotion calendar and distribution as last reported are doing. With every weight at zero it IS the
 // simple forecast, so it can only differ from it where it has learned something. The corrections are
@@ -19,12 +19,12 @@ export const GROUPS = [
 ];
 export const ALL_GROUPS = GROUPS.map((g) => g.id);
 
-// The same week last year: a three-week average of what shoppers bought, to take the edge off noise.
+// The same week last year: a three-week average of depletions, to take the edge off noise.
 export const lastYear = (t) => (WEEKS[t - 53].dep + WEEKS[t - 52].dep + WEEKS[t - 51].dep) / 3;
 
 // Everything in a row is known at least four weeks before the week it describes.
 // A planned or announced value (price, promotion) is known ahead. A reported one (distribution,
-// sales) is only known with a lag, so the model gets last month's figure, not the week's own.
+// depletions) is only known with a lag, so the model gets last month's figure, not the week's own.
 export function rowFor(t, groups) {
   const w = WEEKS[t];
   const x = [], names = [], grp = [];
@@ -176,8 +176,7 @@ export function predictLog(model, t) {
 }
 export const predict = (model, t) => Math.exp(predictLog(model, t));
 
-// A competent forecast with no AI in it: the same week last year (3-week average of what shoppers
-// bought), scaled by how the last four known weeks compare with a year earlier.
+// A competent forecast with no AI in it: the same week last year (3-week average of depletions), scaled by how the last four known weeks compare with a year earlier.
 export function simpleForecast(t) {
   if (t < 60) return null;
   const lastYear = (WEEKS[t - 53].dep + WEEKS[t - 52].dep + WEEKS[t - 51].dep) / 3;

@@ -7,9 +7,10 @@
 import { WEEKS, MARGIN_PER_CASE, CARRY_PER_CASE } from './data.js';
 import { TEST_WEEKS, VALID_WEEKS, predict, selectionModel, simpleForecast } from './forecast.js';
 
-// Replay: order = supply for the week. If supply falls short of what shoppers wanted we lose the
-// margin on the missing cases. If it overshoots, the extras sit in the pipeline and cost us.
-// Each week stands on its own, which ignores the stock distributors carry from week to week.
+// Replay: shipments for the week = the forecast of depletions plus a cushion. If that falls short of
+// depletions with no stockouts (`want`) we lose the margin on the missing cases. If it overshoots, the
+// extras sit as distributor inventory and cost us to carry. Each week stands on its own, which ignores
+// the inventory distributors carry from week to week, and plans no inventory change.
 // That is a simplification, and the lab says so.
 function cost(rows) {
   let lost = 0, excess = 0, short = 0;

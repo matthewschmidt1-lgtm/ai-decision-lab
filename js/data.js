@@ -2,9 +2,12 @@
 // Everything here is fictional. A seeded generator means every visitor sees the same
 // numbers, and the same numbers appear on every screen.
 //
-// The generator has a hidden truth (true demand and the forces behind it). What the
-// team can observe is smaller: depletions (cases sold through to retailers),
-// shipments (cases the distributors ordered), price, promotion and distribution.
+// The generator has a hidden truth (underlying demand and the forces behind it). What the
+// team can observe is smaller: depletions (cases distributors sold to bars, restaurants and
+// stores), shipments (cases the brand shipped to distributors), price, promotion and distribution.
+// Three steps in the chain, never interchangeable: shipments (supplier to distributor), depletions
+// (distributor to on- and off-premise accounts) and sell-through (consumers buying at retail).
+// The lab has no sell-through series, and says nothing that would need one.
 
 export const N = 156;               // weeks
 export const WINDOW = [143, 155];   // the last 13 weeks: "down 8%" is measured here
@@ -84,7 +87,7 @@ function generate() {
   for (let t = 0; t < N; t++) {
     const pBase = t < 78 ? 1.0 : t < 130 ? 1.02 : 1.045;
     list[t] = pBase;                                          // the announced list price: known ahead
-    price[t] = +(pBase * (1 + 0.008 * gaussian(r))).toFixed(4);  // what shelves actually showed
+    price[t] = +(pBase * (1 + 0.008 * gaussian(r))).toFixed(4);  // what shelves actually showed (the shelf price, a retail-side fact)
     promo[t] = promoAt(t);
     const cut = 0.05 * clamp((t - 139) / 4, 0, 1);         // Chain X pulls facings
     dist[t] = +(0.725 + 0.00015 * t - cut + 0.004 * gaussian(r)).toFixed(4);
@@ -99,14 +102,14 @@ function generate() {
     demand[t] = Math.exp(logD);
   }
 
-  // Shipments are what distributors buy from the brand. They are not what consumers buy.
-  // Distributors load before quarter-end, loaded extra last autumn, and are now working that
-  // stock down. The brand's forecast is built from last year's shipments (a 3-week average, which softens the quarter-end spikes), so it inherits the rest.
+  // Shipments are what the brand ships to distributors. They are not depletions (distributor sales to
+  // accounts) and not consumer sell-through. Distributors build inventory before quarter-end, built extra
+  // last autumn, and are now running it down. The brand's forecast is built from last year's shipments (a 3-week average, which softens the quarter-end spikes), so it inherits the rest.
   const adjAt = (u) => {
     const w = u % 13;
     const cycle = (w === 11 || w === 12) ? 0.10 : (w === 0 || w === 1) ? -0.08 : 0;
     const level = u < 56 ? 0 : u < 125 ? 0.012 : u < 146 ? -0.008 : -0.036;
-    // Distributors buy ahead of the April price increase (weeks 125-129), then pay it back.
+    // Distributors take extra shipments ahead of the April price increase (weeks 125-129), then take less.
     const prebuy = (u >= 125 && u < 130) ? 0.05 : (u >= 130 && u < 135) ? -0.03 : 0;
     return cycle + level + prebuy;
   };
@@ -115,7 +118,7 @@ function generate() {
   for (let t = 0; t < N; t++) {
     // week-to-week noise, plus the occasional shock no model could see coming (weather, an event)
     noise[t] = 0.045 * gaussian(r) + (r() < 0.06 ? (r() < 0.5 ? -1 : 1) * (0.07 + 0.05 * r()) : 0);
-    // Stockouts arrive at the tail of the destock, when distributors cut orders too hard.
+    // Stockouts arrive at the tail of the inventory drawdown, when distributors let inventory run too low and accounts cannot get the item.
     const tail = t >= 147 ? 0.045 * Math.sin(Math.PI * clamp((t - 146) / 12, 0, 1)) : 0;
     oos[t] = clamp(0.03 + 0.012 * Math.abs(gaussian(r)) + tail, 0, 0.35);
     dep[t] = demand[t] * (1 - TRUTH.censor * oos[t]) * Math.exp(noise[t]);
@@ -133,8 +136,8 @@ function generate() {
       price: price[t], list: list[t], promo: promo[t], dist: dist[t], oos: oos[t],
       dep: Math.round(dep[t]), ship: Math.round(ship[t]),
       cf: cf[t] == null ? null : Math.round(cf[t]),
-      demand: Math.round(demand[t]),   // hidden truth, smooth: used only by the decomposition
-      want: Math.round(demand[t] * Math.exp(noise[t])),  // hidden: what shoppers would have bought with full shelves
+      demand: Math.round(demand[t]),   // hidden: underlying demand, smooth, before stockouts and noise (a lab construct; depletions follow it with no lag). Used only by the decomposition
+      want: Math.round(demand[t] * Math.exp(noise[t])),  // hidden: depletions with no stockouts
       expect: Math.round(demand[t] * (1 - TRUTH.censor * oos[t])),  // hidden: depletions with the noise taken out
     });
   }
@@ -173,7 +176,7 @@ export function decompose() {
   };
   const explained = Object.values(c).reduce((s, x) => s + x, 0);
   c.other = depTotal - explained;          // week-to-week noise
-  c.inventory = total - depTotal;          // distributors loading last year, destocking now
+  c.inventory = total - depTotal;          // distributor inventory built last year, drawn down now
   const pct = sNow / sThen - 1;
   const scale = pct / total;               // report in percentage points that add up to the headline
   const pts = {};
@@ -181,7 +184,7 @@ export function decompose() {
   return { pct: pct * 100, depPct: (dNow / dThen - 1) * 100, pts, dNow, dThen, sNow, sThen };
 }
 
-// What empty shelves cost in the last 13 weeks: what shoppers would have bought, minus what they could.
+// What stockouts cost in the last 13 weeks: depletions with full availability, minus actual depletions.
 export function stockoutLoss() {
   const now = inWindow(0), then = inWindow(52);
   const lost = sum(now, (t) => WEEKS[t].want - WEEKS[t].dep);
@@ -219,8 +222,8 @@ export const PROMO_RUN = [143, 148];
 
 export const DISTRIBUTORS = ['Lone Star Beverage', 'Gulf Coast Wine & Spirits', 'Hill Country Distributing'];
 
-// Estimated stock sitting at distributors, in weeks of sales: what they bought minus what they sold,
-// added up, on top of a starting four weeks. A real analysis would use their reported inventory.
+// Estimated distributor inventory, in weeks of depletions: shipments minus depletions, added up,
+// on top of a starting four weeks. A real analysis would use their reported inventory.
 export function inventoryEstimate() {
   const avg = mean(WEEKS, (w) => w.dep);
   let stock = 4 * avg;
@@ -238,7 +241,7 @@ export function yoyNoise() {
 
 export const PRICE_WEEK = 130;
 
-// Even a forecaster who knew the exact underlying demand would miss, because weeks are noisy.
+// Even a forecaster who knew the exact underlying level of depletions would miss, because weeks are noisy.
 // This is the floor: no forecast, AI or otherwise, can reliably get under it.
 export function noiseFloor(from = HOLDOUT_START, to = N) {
   let err = 0, tot = 0;

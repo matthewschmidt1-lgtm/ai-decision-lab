@@ -14,6 +14,8 @@ import * as F from '../js/forecast.js';
 import * as V from '../js/value.js';
 import { recipeOf } from '../js/screens/common.js';
 import { testBeliefs, VERDICTS } from '../js/beliefs.js';
+import { screens } from '../js/screens/lab.js';
+import { state } from '../js/state.js';
 
 const out = document.getElementById('out');
 let failed = 0;
@@ -42,12 +44,12 @@ function perturbed(fn, check) {
 section('The story the lab tells');
 const dec = D.decompose();
 t('Shipments are down about 8% over the last 13 weeks', () => eq(dec.pct < -7.5 && dec.pct > -8.5, `got ${dec.pct.toFixed(2)}`));
-t('Shopper pull-through fell by less than shipments', () => eq(dec.depPct > dec.pct + 2, `dep ${dec.depPct.toFixed(2)} vs ship ${dec.pct.toFixed(2)}`));
+t('Depletions fell by less than shipments', () => eq(dec.depPct > dec.pct + 2, `dep ${dec.depPct.toFixed(2)} vs ship ${dec.pct.toFixed(2)}`));
 t('Decomposition points add up to the headline', () => {
   const sum = Object.values(dec.pts).reduce((a, b) => a + b, 0);
   return eq(Math.abs(sum - dec.pct) < 1e-6, `sum ${sum.toFixed(4)} vs ${dec.pct.toFixed(4)}`);
 });
-t('Data: 156 weeks, positive, and shoppers wanted at least what they bought', () => eq(D.WEEKS.length === 156 && D.WEEKS.every((w) => w.dep > 0 && w.want >= w.dep), 'bad weeks'));
+t('Data: 156 weeks, positive, and depletions with no stockouts are at least actual depletions', () => eq(D.WEEKS.length === 156 && D.WEEKS.every((w) => w.dep > 0 && w.want >= w.dep), 'bad weeks'));
 t('The noise floor is real: nothing can reliably beat it', () => {
   const e = F.evaluate(F.trainModel(G)), f = D.noiseFloor();
   return eq(f > 0.02 && f < 0.07 && e.wapeAI > f * 0.9 && e.wapeSimple > f * 0.9, `floor ${f}, ai ${e.wapeAI}, simple ${e.wapeSimple}`);
@@ -62,7 +64,7 @@ t('Time is cut into learn, choose and exam, in order, with a gap', () => eq(D.TR
 t('Every input is known well ahead: moving anything newer than that changes no feature', () => {
   const t0 = 120, before = F.rowFor(t0, G).x.join(',');
   return perturbed(() => {
-    for (let i = t0 - 4; i < D.N; i++) { D.WEEKS[i].dep *= 3; D.WEEKS[i].dist *= 0.5; }   // sales and distribution: reported with a lag
+    for (let i = t0 - 4; i < D.N; i++) { D.WEEKS[i].dep *= 3; D.WEEKS[i].dist *= 0.5; }   // depletions and distribution: reported with a lag
     for (let i = 0; i < D.N; i++) D.WEEKS[i].price *= 2;                                 // shelf price is never an input
   }, () => eq(before === F.rowFor(t0, G).x.join(','), 'a feature changed when only data newer than the lag changed'));
 });
@@ -146,10 +148,10 @@ t('At least one belief is only conditionally true, one unsupported, one untestab
   return eq(['conditions', 'unsupported', 'untestable'].every((x) => v.includes(x)), v.join());
 });
 t('Forecast: right on average in year one, high when it matters, and rarely within 5%', () => eq(Math.abs(B.forecast.biasYearOne) < 0.03 && B.forecast.biasRecent > 0.05 && B.forecast.within5 / B.forecast.weeks < 0.6, JSON.stringify(B.forecast)));
-t('Distributors: about even over a year, far off at quarter-end and around the price increase', () => eq(Math.abs(B.distributors.gapYear) < 0.02 && B.distributors.quarterEnd > 0.05 && B.distributors.quarterStart < -0.05 && B.distributors.preBuy > 0.05 && B.distributors.postBuy < -0.05, JSON.stringify(B.distributors)));
-t('Promotion adds volume, and the profit break-even is a positive discount below the price', () => eq(B.promo.pts > 0 && B.promo.breakEven > 0 && B.promo.breakEven < D.REVENUE_PER_CASE, JSON.stringify(B.promo)));
+t('Shipments vs depletions: about even over a year, far apart at quarter-end and around the price increase', () => eq(Math.abs(B.distributors.gapYear) < 0.02 && B.distributors.quarterEnd > 0.05 && B.distributors.quarterStart < -0.05 && B.distributors.preBuy > 0.05 && B.distributors.postBuy < -0.05, JSON.stringify(B.distributors)));
+t('Promotion adds depletions, and the profit break-even is a positive discount below the price', () => eq(B.promo.pts > 0 && B.promo.breakEven > 0 && B.promo.breakEven < D.REVENUE_PER_CASE, JSON.stringify(B.promo)));
 t('Distribution: the estimate’s range holds both one-for-one and half', () => eq(B.distribution.lo < 0.5 && B.distribution.hi > 1, JSON.stringify(B.distribution)));
-t('Shelves: stockouts were normal during the promotion run and rose only after it', () => eq(B.shelves.during - B.shelves.duringLast < 0.01 && B.shelves.after - B.shelves.afterLast > 0.015, JSON.stringify(B.shelves)));
+t('Out-of-stocks were normal during the promotion run and rose only after it', () => eq(B.shelves.during - B.shelves.duringLast < 0.01 && B.shelves.after - B.shelves.afterLast > 0.015, JSON.stringify(B.shelves)));
 t('Beliefs never read the hidden truth columns', () => {
   const before = JSON.stringify(testBeliefs());
   const saved = D.WEEKS.map((w) => [w.demand, w.want, w.expect]);
@@ -159,11 +161,43 @@ t('Beliefs never read the hidden truth columns', () => {
   return eq(before === after, 'a verdict moved when the hidden columns changed');
 });
 
+section('Simplicity: few screens, little text');
+const words = (el) => { const c = el.cloneNode(true); c.querySelectorAll('svg').forEach((x) => x.remove()); return (c.textContent.match(/\S+/g) || []).length; };
+t('The lab is seven screens', () => eq(screens.length === 7, `${screens.length}`));
+t('Every screen renders, and none carries more than 260 words outside its charts (all together under 1,300)', () => {
+  const saved = JSON.stringify(state);
+  state.bets = Object.fromEntries(['forecast', 'distributors', 'promo', 'shelves', 'distribution'].map((k) => [k, 'holds'])); state.checked = true; state.read = 'price';
+  const noop = () => {};
+  const counts = screens.map((sc) => { const el = sc.render({ state, save: noop, next: noop, back: noop, go: noop, hasBack: true, rerender: noop }); return [sc.id, words(el)]; });
+  Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, JSON.parse(saved));
+  const over = counts.filter(([, n]) => n > 260), total = counts.reduce((a, [, n]) => a + n, 0);
+  return eq(!over.length && total < 1300, `over: ${JSON.stringify(over)}, total ${total}`);
+});
+
+section('Vocabulary: shipments, depletions and sell-through are different steps');
+t('No screen uses shopper wording for depletions, or borrows sell-in, sell-out or pull-through', () => {
+  const saved = JSON.stringify(state), noop = () => {};
+  const banned = /shopper|pull-through|sell-out|sell-in|what shoppers|consumers bought/i;
+  const texts = [];
+  for (const checked of [false, true]) {
+    state.bets = Object.fromEntries(['forecast', 'distributors', 'promo', 'shelves', 'distribution'].map((k) => [k, 'holds'])); state.checked = checked; state.read = 'price'; state.sysWorry = 'data'; state.pplWorry = 'trust';
+    for (const sc of screens) {
+      const el = sc.render({ state, save: noop, next: noop, back: noop, go: noop, hasBack: true, rerender: noop });
+      el.querySelectorAll('svg [aria-label], [aria-label], [title]').forEach((n) => texts.push([sc.id, n.getAttribute('aria-label') || n.getAttribute('title')]));
+      texts.push([sc.id, el.textContent]);
+    }
+  }
+  Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, JSON.parse(saved));
+  const hit = texts.filter(([, x]) => banned.test(x || '')).map(([id, x]) => `${id}: ${(x.match(banned) || [])[0]}`);
+  return eq(!hit.length, hit.join('; '));
+});
+t('Sell-through is never cited as a data series: the data has no consumer series', () => eq(!D.WEEKS[0].sellthrough && !D.WEEKS[0].shopper && !('consumer' in D.WEEKS[0]), 'a consumer series appeared'));
+
 section('The claims about accuracy');
 const ev = F.evaluate(m);
-t('A simple no-AI forecast of shopper sales beats today’s shipment-based forecast', () => eq(ev.wapeSimple < ev.wapeCurrent, `${ev.wapeSimple} vs ${ev.wapeCurrent}`));
+t('A simple no-AI depletions forecast beats today’s shipment-based forecast, scored on depletions', () => eq(ev.wapeSimple < ev.wapeCurrent, `${ev.wapeSimple} vs ${ev.wapeCurrent}`));
 t('The AI forecast beats today’s forecast on the exam weeks', () => eq(ev.wapeAI < ev.wapeCurrent, `${ev.wapeAI} vs ${ev.wapeCurrent}`));
-t('Today’s forecast runs high (it forecasts shipments, which include loading)', () => eq(ev.biasCurrent > 0.03, `bias ${ev.biasCurrent}`));
+t('Today’s forecast runs high (it forecasts shipments, which include distributor inventory build)', () => eq(ev.biasCurrent > 0.03, `bias ${ev.biasCurrent}`));
 t('Rolling origin: five folds, all forecasts positive and sensible', () => {
   const r = F.rollingOrigin(G);
   return eq(r.length === 5 && r.every((x) => x.wapeAI > 0.01 && x.wapeAI < 0.3 && x.wapeSimple > 0.01 && x.wapeCurrent > 0.01), JSON.stringify(r));

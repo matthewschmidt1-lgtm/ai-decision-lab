@@ -1,14 +1,20 @@
 # AI Decision Lab
 
-An interactive lab for CPG leaders. Find where AI could improve a real decision, open the hood on how it works, and design the pilot that would show whether it works.
+An interactive lab for CPG leaders. See what really happened to a brand's shipments, teach a neuron to forecast, learn what neural nets are, and design the pilot that would show whether AI helps.
 
 > AI is not the product. Better decisions are.
 
-## The experience (about 25 minutes)
+## The experience (seven screens, about ten minutes)
 
-1. **Find the opportunity.** A fictional bourbon brand is down 8% in Texas. You have three questions. Commit to a read, see where the 8% really went, name the assumptions everyone is making, and decide which decision is worth pointing AI at, including the ones that should not get AI at all.
-2. **Open the hood.** A real forecasting model trains in your browser, and is tested honestly against today's method and a simple method with no AI. Choose its inputs on one slice of history, score once on weeks it never saw, ask it why it said what it said, turn a forecast into a shipping decision, watch it learn from a random start (and break it with a learning rate that is too high), then read the math and the actual source code.
-3. **Design the pilot.** Size the value with assumptions you can change, look for friction in the system and the people, and write the experiment: hypothesis, baseline, intervention, human role, metric, test period and the decision after. See whether a pilot of that size could even tell a real gain from noise. Ends with a brief you can copy or print, which starts with what to do first without AI, and the question: *what would we need to learn?*
+1. **The problem.** A fictional bourbon brand's shipments are down 8% in Texas. Pick the biggest piece of the drop, then see what depletions did.
+2. **The blind spot.** Five beliefs inside how the brand plans. Call each one, then check it against the data.
+3. **Teach a neuron.** A real training run in your browser: random start, measure the miss, nudge the weights. Try too slow and too fast.
+4. **The honest test.** Today's forecast against a simple no-AI forecast and the AI, on weeks the model never saw.
+5. **Neural nets.** One neuron, a network, a language model: the same loop at three sizes.
+6. **Three questions.** Business, System and People.
+7. **The pilot.** Choose a target, length and scope, check that a test that size could tell, and copy the brief.
+
+Shipments are product the brand ships to distributors. Depletions are what distributors sell to on- and off-premise accounts. Sell-through is consumers buying at retail; the lab has no data for it.
 
 Three lenses run through it: **Business** (does it create value?), **System** (can it work?), **People** (will they use it?).
 

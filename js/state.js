@@ -1,23 +1,14 @@
 // What the learner has decided so far. Kept on this device only, so a refresh does not lose
 // their place. There are no accounts, and nothing is sent anywhere.
 
-import { ALL_GROUPS, DEFAULT_CAUTION } from './forecast.js';
-import { DEFAULTS, CURRENT_CUSHION } from './value.js';
+import { DEFAULTS } from './value.js';
 
-const KEY = 'adlab.v2';
+const KEY = 'adlab.v3';
 
 const fresh = () => ({
-  picks: [],            // investigations opened, in order
-  read: null,           // what they believe is driving the decline
-  bets: {},             // their call on each belief in the blind-spot screen, before they see the data
+  read: null,           // the force they thought was the biggest piece of the drop
+  bets: {},             // their call on each belief, before they see the data
   checked: false,       // whether they have checked those calls against the data
-  candidate: null,      // the decision they point AI at
-  looked: [],           // other candidates they examined
-  features: [...ALL_GROUPS],
-  caution: DEFAULT_CAUTION,   // how far the AI may depart from the simple forecast
-  locked: null,         // { features, caution } the learner scored on the exam weeks
-  cushion: CURRENT_CUSHION,
-  lr: 0.1,
   value: { ...DEFAULTS },
   sysWorry: null,
   pplWorry: null,

@@ -11,7 +11,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 a { color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 [hidden] { display: none !important; }
-
 /* ---------- Chrome ---------- */
 .top {
   position: sticky; top: 0; z-index: 20;
@@ -26,32 +25,17 @@ a { color: inherit; }
 }
 .brand { font: 600 0.95rem var(--font); letter-spacing: -0.01em; text-decoration: none; white-space: nowrap; }
 .brand span { color: var(--muted); font-weight: 500; }
-.exps { display: flex; gap: 4px; margin-left: auto; }
-.exps button {
-  background: none; border: 0; padding: 8px 12px; border-radius: var(--r-pill);
-  font-size: 0.875rem; color: var(--muted); transition: color var(--dur-fast), background var(--dur-fast);
-}
-.exps button:hover { color: var(--ink); }
-.exps button[aria-current="true"] { color: var(--ink); background: var(--sunk); font-weight: 600; }
-.exps .n { font-family: var(--mono); font-size: 0.72rem; margin-right: 6px; opacity: 0.7; }
+.exps { display: flex; gap: 2px; margin-left: auto; align-items: center; }
+.exps .step { background: none; border: 0; padding: 12px 5px; display: grid; place-items: center; cursor: pointer; }
+.exps .step i { display: block; width: 22px; height: 4px; border-radius: 2px; background: var(--line-2); transition: background var(--dur) var(--ease), width var(--dur) var(--ease); }
+.exps .step:hover:not(:disabled) i { background: var(--ink-2); }
+.exps .step[aria-current="true"] i { background: var(--accent); width: 30px; }
+.exps .step:disabled { cursor: default; }
 .restart { background: none; border: 0; color: var(--muted); font-size: 0.8125rem; padding: 8px 4px; }
 .restart:hover { color: var(--ink); }
-
-.track { border-bottom: 1px solid var(--line); background: var(--bg); }
-.track-in { max-width: var(--max); margin: 0 auto; padding: 10px var(--gutter) 12px; }
-.track ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
-.track li { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.track-now { display: none; }
-.track li i { height: 3px; border-radius: 2px; background: var(--line-2); transition: background var(--dur) var(--ease); }
-.track li span { font: 500 0.6875rem var(--mono); letter-spacing: 0.02em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.track li[data-state="done"] i { background: var(--ink-2); }
-.track li[data-state="now"] i { background: var(--accent); }
-.track li[data-state="now"] span { color: var(--ink); font-weight: 700; }
-
 main { flex: 1; width: 100%; }
 .stage { max-width: var(--max); margin: 0 auto; padding: clamp(28px, 6vw, 72px) var(--gutter) 96px; }
 .foot { max-width: var(--max); margin: 0 auto; padding: 24px var(--gutter) 40px; color: var(--muted); font-size: 0.8125rem; border-top: 1px solid var(--line); width: 100%; }
-
 /* ---------- Type ---------- */
 .eyebrow {
   display: inline-flex; align-items: center; gap: 10px;
@@ -62,7 +46,6 @@ main { flex: 1; width: 100%; }
 .eyebrow[data-lens="sys"] .dot { background: var(--sys); }
 .eyebrow[data-lens="ppl"] .dot { background: var(--ppl); }
 .eyebrow .sep { opacity: 0.4; }
-
 .hero { font: 700 var(--fs-hero)/1.02 var(--font-display); letter-spacing: -0.035em; text-wrap: balance; }
 .h1 { font: 700 var(--fs-h1)/1.1 var(--font-display); letter-spacing: -0.028em; text-wrap: balance; max-width: 22ch; }
 .h1.wide { max-width: 30ch; }
@@ -73,10 +56,7 @@ main { flex: 1; width: 100%; }
 .prose strong, .lede strong { color: var(--ink); font-weight: 650; }
 .small { font-size: var(--fs-small); color: var(--ink-2); }
 .micro { font: 500 var(--fs-micro) var(--mono); letter-spacing: 0.02em; color: var(--muted); }
-.mono { font-family: var(--mono); }
-.muted { color: var(--muted); }
 .num { font-variant-numeric: tabular-nums; }
-
 /* ---------- Layout ---------- */
 .stack { --gap: 20px; }
 .stack-s { --gap: 12px; }
@@ -84,9 +64,11 @@ main { flex: 1; width: 100%; }
 .stack > * + *, .stack-s > * + *, .stack-l > * + * { margin-top: var(--gap); }
 .row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .split { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: clamp(24px, 4vw, 56px); align-items: start; }
-@media (max-width: 820px) { .split { grid-template-columns: 1fr; } }
-.rule { border: 0; border-top: 1px solid var(--line); margin: 0; }
 
+@media (max-width: 820px) {
+.split { grid-template-columns: 1fr; }
+}
+.rule { border: 0; border-top: 1px solid var(--line); margin: 0; }
 /* ---------- Buttons ---------- */
 .btn {
   display: inline-flex; align-items: center; gap: 10px;
@@ -104,7 +86,6 @@ main { flex: 1; width: 100%; }
 .link:hover { text-decoration: underline; text-underline-offset: 3px; }
 .back { background: none; border: 0; color: var(--muted); font-size: 0.875rem; padding: 6px 0; }
 .back:hover { color: var(--ink); }
-
 /* ---------- Entrance ---------- */
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 .screen > * { animation: rise var(--dur) var(--ease) both; }
@@ -115,15 +96,22 @@ main { flex: 1; width: 100%; }
 .reveal { animation: rise var(--dur) var(--ease) both; }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.001ms !important; animation-delay: 0ms !important; transition-duration: 0.001ms !important; }
+*, *::before, *::after { animation-duration: 0.001ms !important; animation-delay: 0ms !important; transition-duration: 0.001ms !important; }
 }
 
 @media (max-width: 640px) {
-  .exps button .t { display: none; }
-  .exps button { padding: 8px 12px; }
-  .brand span { display: none; }
-  .track li span { display: none; }
-  .track-in { padding-bottom: 10px; }
-  .track-now { display: block; margin-top: 8px; font: 700 0.6875rem var(--mono); letter-spacing: 0.02em; color: var(--ink); }
+.exps .step i { width: 14px; }
+.exps .step[aria-current="true"] i { width: 20px; }
+.brand span { display: none; }
 }
 .restart { white-space: nowrap; }
+
+@media (max-width: 480px) {
+.top-in { gap: 8px; }
+.exps { gap: 0; }
+.exps .step { padding: 12px 2px; }
+.exps .step i { width: 12px; }
+.exps .step[aria-current="true"] i { width: 18px; }
+.restart { font-size: 0.75rem; padding: 8px 0; }
+}
+
