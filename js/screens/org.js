@@ -1,10 +1,12 @@
-// Screens 1 and 2: the organism, and what happens to its mantra when departments optimize alone.
+// Screens 1 and 2: the organism, and what its layers do to a signal.
 //   1 Every department pulls toward its own goal. The company moves in the sum.
-//   2 "Beat the market" meets "minimize inventory": a campaign, and the stock behind it.
+//   2 A signal moves through (the bullwhip), and "Beat the market" meets "minimize inventory": a campaign.
 
-import { h, s, mount, int, stat, seg, whenVisible, reducedMotion } from '../ui.js';
+import { h, s, mount, int, stat, note, seg, whenVisible, reducedMotion } from '../ui.js';
 import { DEPTS, PULL_DEFAULT, clampPull, sumPulls, BUFFERS, runCampaign, WEEKS_SIM, CAMPAIGN_START, PLAN_LIFT, BASE, SAFETY, MARGIN, HOLD, LEAD } from '../org.js';
 import { orgFigure } from '../orgfig.js';
+import { waveFigure } from '../wavefig.js';
+import { runChain, MODES, LAYERS, STEP, WINDOW } from '../bullwhip.js';
 import { actions, top } from './common.js';
 
 const pc = (v, d = 0) => `${(v * 100).toFixed(d)}%`;
@@ -53,7 +55,7 @@ export const organism = {
         h('div', { class: 'stack' },
           h('div', { class: 'stack-s' }, h('p', { class: 'micro' }, 'Drag to change how hard each department pulls. Directions are illustrative.'), rows),
           ask, out)),
-      actions(ctx, { label: 'See it in a campaign' }));
+      actions(ctx, { label: 'Watch a signal move through' }));
   },
 };
 
@@ -128,9 +130,8 @@ const storyLine = (m) => {
   return 'The AI saw that past campaigns landed near 80% of plan, and built the buffer to match. A person still approves it, and owns the call.';
 };
 
-export const campaign = {
-  id: 'campaign', title: 'The campaign',
-  render(ctx) {
+function campaignView(ctx) {
+  {
     const { state, save } = ctx;
     if (!BUFFERS.some((b) => b.id === state.buffer)) state.buffer = 'alone';
     const stage = h('div', { class: 'stack camp-stage' });
@@ -171,11 +172,57 @@ export const campaign = {
     };
     const paintOpts = () => mount(optBox, seg(BUFFERS.map((b) => [b.id, SHORT[b.id]]), state.buffer, (id) => { state.buffer = id; save(); paintOpts(); build(true); }));
     paintOpts(); build();
-    const root = h('div', { class: 'screen stack-l' },
-      h('div', { class: 'stack' }, ...top(2, 'biz', 'Beat the market. Then run out of stock.', 'Marketing launches a big campaign. Operations is measured on lean stock. Who sets the buffer?')),
+    return h('div', { class: 'stack-l' },
       h('div', { class: 'learn-controls' }, optBox, h('button', { class: 'btn small', type: 'button', onClick: () => build.replay() }, 'Replay')),
-      stage,
-      actions(ctx, { label: 'Where does attention go?' }));
-    return root;
+      stage);
+  }
+}
+
+// ---------------------------------------------------------------- The wave: the bullwhip
+const CHAINS = () => (CHAINS._ ||= { orders: runChain('orders'), shared: runChain('shared') });
+const peakOf = (d, id) => d.peaks.find((p) => p.id === id);
+const round = (v) => Math.round(v);
+
+function waveView(ctx) {
+  const { state, save } = ctx;
+  const fig = waveFigure(), out = h('div', { class: 'stack camp-results' }), optBox = h('div');
+  let cancel = () => {};
+  const results = (mode) => {
+    const d = CHAINS()[mode], plant = peakOf(d, 'plant'), cons = peakOf(d, 'consumer'), base = peakOf(CHAINS().orders, 'plant');
+    const swing = plant.down > 1 ? `up ${round(plant.up)}% and down ${round(plant.down)}%` : `up ${round(plant.up)}%`;
+    mount(out,
+      h('p', { class: 'verdict reveal' }, mode === 'orders'
+        ? `Consumer demand barely moved: ${round(cons.abs)}%. The plant’s orders swung ${swing}. Every layer responded rationally. The system responded irrationally.`
+        : `With real demand shared, the plant’s swing falls from ${round(base.abs)}% to ${round(plant.abs)}%. The rest is stock that a higher level of demand needs once.`),
+      h('div', { class: 'stats reveal' }, stat('Consumer demand', `+${round(cons.abs)}%`, 'what actually changed'), stat('Plant orders', `${round(plant.abs)}%`, 'the biggest swing, either way', mode === 'orders' ? 'bad' : 'ai'), stat('Amplified', `${(plant.abs / cons.abs).toFixed(0)}x`, 'plant swing over demand change')),
+      note('Why it matters', `Each layer optimized its own stock. Nobody owned the sum. An AI that reads every layer’s orders at once can show the swing as it starts, and sharing real demand cuts the plant’s swing to ${round(peakOf(CHAINS().shared, 'plant').abs)}%.`),
+      h('p', { class: 'micro' }, `Illustrative: each layer orders up to a ${WINDOW}-week average of what it is asked for plus ${LAYERS.map((l) => l.cover).join(', ')} weeks of cover, with stock taking ${LAYERS.map((l) => l.lead).join(', ')} weeks to arrive. Demand rises ${round(STEP * 100)}% and stays there. The gold band is that change at the same scale. This is the documented bullwhip effect.`));
+  };
+  const go = () => { mount(out); fig.play(CHAINS()[state.seen], () => results(state.seen)); };
+  const paintOpts = () => mount(optBox, seg(MODES.map((m) => [m.id, m.label]), state.seen, (id) => { state.seen = id; save(); paintOpts(); cancel(); go(); }));
+  paintOpts();
+  fig.rest(CHAINS()[state.seen]);
+  cancel = whenVisible(fig.node, go);
+  return h('div', { class: 'stack-l' },
+    h('div', { class: 'learn-controls' }, optBox, h('button', { class: 'btn small', type: 'button', onClick: () => { cancel(); go(); } }, 'Replay')),
+    h('div', { class: 'wave-wrap' }, fig.node), out);
+}
+
+export const wave = {
+  id: 'wave', title: 'The wave',
+  render(ctx) {
+    const { state, save } = ctx;
+    if (state.view !== 'campaign') state.view = 'wave';
+    if (!MODES.some((m) => m.id === state.seen)) state.seen = 'orders';
+    const head = h('div', { class: 'stack' }), tabs = h('div'), body = h('div');
+    const paint = () => {
+      mount(tabs, seg([['wave', 'The wave'], ['campaign', 'The campaign']], state.view, (id) => { state.view = id; save(); paint(); }));
+      mount(head, ...(state.view === 'wave'
+        ? top(2, 'biz', 'A signal moves through.', 'Consumer demand rises 3%. Watch four sensible decisions turn it into something else.')
+        : top(2, 'biz', 'Beat the market. Then run out of stock.', 'Marketing launches a big campaign. Operations is measured on lean stock. Who sets the buffer?')));
+      mount(body, state.view === 'wave' ? waveView(ctx) : campaignView(ctx));
+    };
+    paint();
+    return h('div', { class: 'screen stack-l' }, head, tabs, body, actions(ctx, { label: 'Where does attention go?' }));
   },
 };

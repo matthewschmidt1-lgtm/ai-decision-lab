@@ -41,7 +41,7 @@ body { background: #fff; }
 
 @media (max-width: 640px) {
 .learn-controls { grid-template-columns: 1fr; }
-.learn-controls .seg { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; }
+.learn-controls .seg { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); width: 100%; }
 .learn-controls .btn { justify-self: start; }
 }
 

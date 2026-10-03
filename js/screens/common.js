@@ -2,7 +2,7 @@ import { h, eyebrow } from '../ui.js';
 import { monthLabel } from '../data.js';
 import { ALL_GROUPS, DEFAULT_CAUTION, trainModel } from '../forecast.js';
 
-export const STEP_NAMES = ['The organism', 'The campaign', 'Where attention goes', 'How it learns', 'The honest test', 'Safe and aligned', 'Steer'];
+export const STEP_NAMES = ['The organism', 'The wave', 'Where attention goes', 'How it learns', 'The honest test', 'Safe and aligned', 'Steer'];
 export const TOTAL = STEP_NAMES.length;
 
 // The top of every screen: where you are, and the one question.

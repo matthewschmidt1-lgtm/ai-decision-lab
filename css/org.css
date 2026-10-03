@@ -90,6 +90,30 @@
 .led-key i { width: 10px; height: 10px; border-radius: 3px; }
 @media (max-width: 560px) { .led-row { grid-template-columns: 1fr 48px; } .led-name { grid-column: 1 / -1; } }
 
+/* The wave */
+.wave-wrap { background: var(--paper); border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--line); padding: clamp(8px, 2vw, 16px); }
+.wv { display: block; width: 100%; height: auto; overflow: visible; }
+.wv-corridor { fill: var(--gold); opacity: 0.18; }
+.wv-base { stroke: var(--line-2); stroke-width: 1; stroke-dasharray: 3 5; }
+.wv-ribbon { fill: none; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
+.wv-glow { fill: none; stroke-width: 28; stroke-linecap: round; stroke-linejoin: round; opacity: 0.14; }
+.wv-ghost { fill: none; stroke: var(--ink-2); stroke-width: 2; stroke-linecap: round; opacity: 0; }
+.wv-node { stroke: var(--bg); stroke-width: 3; }
+.wv-fig { display: grid; gap: 6px; }
+.wv-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.wv-say { text-align: center; font: 600 clamp(10px, 1.7vw, 12.5px)/1.25 var(--font); background: var(--paper); border-radius: 10px; box-shadow: inset 0 0 0 1px var(--line-2); padding: 7px 4px; min-height: 42px; display: grid; place-items: center; opacity: 0; transform: translateY(8px); transition: opacity 500ms var(--ease), transform 500ms var(--ease); }
+.wv-say.on { opacity: 1; transform: none; }
+.wv-say.src { box-shadow: inset 0 0 0 1.5px var(--gold); }
+.wv-col { text-align: center; display: grid; gap: 1px; justify-items: center; }
+.wv-col b { font: 650 clamp(10.5px, 1.8vw, 13px) var(--font); }
+.wv-val { font: 600 clamp(9px, 1.5vw, 11px) var(--mono); color: var(--muted); }
+.wv-cap { fill: var(--bad); fill-opacity: 0.13; stroke: var(--bad); stroke-opacity: 0.45; stroke-width: 1.2; opacity: 0; transition: opacity 400ms; }
+.wv-cap.src { fill: var(--gold); stroke: var(--gold); }
+.wv-fig.done .wv-cap { opacity: 1; }
+.wv-fig.done .wv-ghost { opacity: 0 !important; }
+.wv-ring { fill: none; stroke: var(--ink-2); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: wv-ring 1.2s ease-out both; }
+@keyframes wv-ring { from { opacity: 0.5; transform: scale(1); } to { opacity: 0; transform: scale(3); } }
+
 /* ---------- 3. The week as a calendar ---------- */
 .cals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(16px, 4vw, 40px); }
 .cal { display: grid; gap: 8px; }
@@ -145,7 +169,7 @@ button.job[aria-pressed="true"]:hover { box-shadow: inset 0 0 0 2px var(--accent
 .measure-note { max-width: var(--measure); }
 
 @media (prefers-reduced-motion: reduce) {
-  .org-flow, .org-pulse, .camp-lost, .oos.on, .sig-dot, .tile.swap { animation: none !important; }
+  .org-flow, .org-pulse, .camp-lost, .oos.on, .sig-dot, .tile.swap, .wv-ring { animation: none !important; }
   .sig-dot { opacity: 1; }
 }
 @media print { .org-flow, .org-pulse { animation: none !important; } }

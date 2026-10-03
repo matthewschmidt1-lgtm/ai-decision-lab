@@ -1,5 +1,5 @@
 // The lab, in seven screens. One idea and one thing to do on each.
-//   1 The organism: every department pulls toward its own goal   2 The campaign: what the sum costs
+//   1 The organism: every department pulls toward its own goal   2 The wave (the bullwhip) and the campaign: what the sum costs
 //   3 Where attention goes (time and focus)   4 How it learns   5 The honest test
 //   6 Safe and aligned   7 Steer: what to optimize, and the pilot
 // Everything is computed live. The models on screen 4 are trained in the browser.
@@ -15,7 +15,7 @@ import { testBeliefs } from '../beliefs.js';
 import { WEEK, DESTINATIONS, DEST, TEAM, WORK_WEEKS, RATE, ROUTINE_HOURS, grossHours, netHours, routineShare, weekAfter, annualRange, REVIEW, reviewHours } from '../time.js';
 import { sumPulls, runCampaign } from '../org.js';
 import { orgFigure } from '../orgfig.js';
-import { organism, campaign } from './org.js';
+import { organism, wave } from './org.js';
 import { actions, ticksFor, rangeText, STEP_NAMES, top } from './common.js';
 
 export { STEP_NAMES };
@@ -649,4 +649,4 @@ const steer = {
   },
 };
 
-export const screens = [organism, campaign, time, learn, test, safe, steer];
+export const screens = [organism, wave, time, learn, test, safe, steer];

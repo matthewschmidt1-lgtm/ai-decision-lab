@@ -8,6 +8,8 @@ const KEY = 'adlab.v7';
 const fresh = () => ({
   pulls: { mkt: 1, sales: 1, fin: 1, ops: 1 },   // how hard each department pulls toward its own goal (screen 1)
   reveal: false,        // whether they have asked the AI what the sum of the pulls is doing
+  view: 'wave',         // which half of screen 2 they are on: the wave or the campaign
+  seen: 'orders',       // what each layer of the wave sees: only orders, or real demand
   buffer: 'alone',      // who sets the stock behind the campaign (screen 2)
   job: null,            // the block of the week they have opened to see who should do it (screen 3)
   autoShare: 0.6,       // how much of the routine work the computer takes over, on the time screen

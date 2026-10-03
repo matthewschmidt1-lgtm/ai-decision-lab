@@ -16,6 +16,7 @@ import { recipeOf } from '../js/screens/common.js';
 import { testBeliefs, VERDICTS } from '../js/beliefs.js';
 import { screens, JOBS, WHO, SAFE_QS } from '../js/screens/lab.js';
 import * as ORG from '../js/org.js';
+import * as BW from '../js/bullwhip.js';
 import * as NN from '../js/nn.js';
 import { state } from '../js/state.js';
 import * as TM from '../js/time.js';
@@ -163,8 +164,9 @@ t('Beliefs never read the hidden truth columns', () => {
 section('Simplicity: few screens, little text');
 const words = (el) => { const c = el.cloneNode(true); c.querySelectorAll('svg').forEach((x) => x.remove()); return (c.textContent.match(/\S+/g) || []).length; };
 t('The lab is seven screens', () => eq(screens.length === 7, `${screens.length}`));
-// Screen 7 has two halves. Count each as a screen of its own.
-const withViews = (fn) => { const out = []; for (const sc of screens) for (const view of (sc.id === 'steer' ? ['align', 'test'] : [null])) { if (view) state.steer = view; out.push(fn(sc, view)); } state.steer = 'align'; return out; };
+// Screens 2 and 7 have two halves. Count each as a screen of its own.
+const VIEWS = { steer: ['steer', ['align', 'test']], wave: ['view', ['wave', 'campaign']] };
+const withViews = (fn) => { const out = []; for (const sc of screens) { const [key, list] = VIEWS[sc.id] || [null, [null]]; for (const view of list) { if (view) state[key] = view; out.push(fn(sc, view)); } } state.steer = 'align'; state.view = 'wave'; return out; };
 t('Every screen renders, and none carries more than 320 words outside its charts (all together under 1,700)', () => {
   const saved = JSON.stringify(state);
   state.gap = 'system';
@@ -208,11 +210,11 @@ t('Twelve neurons do worse on unseen points than three, in most random draws (me
 section('Saved choices from an older version must never break a page');
 t('Stale or nonsense saved choices are cleaned up instead of crashing any screen', () => {
   const saved = JSON.stringify(state), noop = () => {};
-  Object.assign(state, { pulls: { mkt: 'x', sales: -4, fin: 99, ops: null }, reveal: 'maybe', buffer: 'gone', job: 'gone', gap: 'gone', destination: 'gone', autoShare: 'x', announce: 'gone', safeAns: ['nonsense', 7], shared: 'lots', measure: 'gone', steer: 'gone' });
+  Object.assign(state, { pulls: { mkt: 'x', sales: -4, fin: 99, ops: null }, reveal: 'maybe', view: 'gone', seen: 'gone', buffer: 'gone', job: 'gone', gap: 'gone', destination: 'gone', autoShare: 'x', announce: 'gone', safeAns: ['nonsense', 7], shared: 'lots', measure: 'gone', steer: 'gone' });
   let msg = true;
   try { withViews((sc) => sc.render({ state, save: noop, next: noop, back: noop, go: noop, hasBack: true, rerender: noop })); }
   catch (e) { msg = `${e.message}`; }
-  const healed = state.buffer === 'alone' && state.job === null && state.reveal === false && state.pulls.sales === 0 && state.pulls.fin === 2 && state.measure === 'depletions';
+  const healed = state.view === 'wave' && state.seen === 'orders' && state.buffer === 'alone' && state.job === null && state.reveal === false && state.pulls.sales === 0 && state.pulls.fin === 2 && state.measure === 'depletions';
   Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, JSON.parse(saved));
   return eq(msg === true && healed, msg === true ? 'a stale value was kept' : msg);
 });
@@ -266,6 +268,14 @@ t('Trusting the plan at face value over-builds; adjusting it for how past campai
 t('The ledger adds up: missed margin is lost cases times margin, holding cost is stock-weeks times the holding rate', () => {
   for (const r of Object.values(CAMP)) if (Math.abs(r.missed - r.lostTotal * ORG.MARGIN) > 1e-6 || Math.abs(r.holding - r.stock.reduce((a, b) => a + b, 0) * ORG.HOLD) > 1e-6 || Math.abs(r.total - r.missed - r.holding) > 1e-6) return r.mode;
 });
+
+section('The bullwhip: a small change, amplified layer by layer (screen 2)');
+const BWO = BW.runChain('orders'), BWS = BW.runChain('shared');
+t('A 3% rise in consumer demand is amplified at every layer up the chain, and the plant swings both ways', () => { const a = BWO.peaks.map((p) => p.abs); return eq(a.every((v, i) => i === 0 || v > a[i - 1]) && BWO.peaks[4].up > 30 && BWO.peaks[4].down > 30, JSON.stringify(a)); });
+t('Nothing changes when demand does not: every layer stays exactly on its baseline', () => eq(BW.runChain('orders', 0).peaks.every((p) => p.abs < 1e-9), 'a layer moved with no change in demand'));
+t('Orders settle at the new level of demand at every layer, so the swing is a transient, not a drift', () => eq(BWO.layers.every((l) => Math.abs(l.orders.slice(-6).reduce((a, b) => a + b, 0) / 6 - BW.BASE_BW * (1 + BW.STEP)) < 0.5), JSON.stringify(BWO.layers.map((l) => l.orders.slice(-3)))));
+t('Sharing real demand with every layer cuts the swing at each upstream layer, and the plant by well over half', () => eq(BWS.peaks.slice(2).every((p, i) => p.abs < BWO.peaks[i + 2].abs) && BWS.peaks[4].abs < BWO.peaks[4].abs * 0.5, JSON.stringify([BWS.peaks.map((p) => p.abs), BWO.peaks.map((p) => p.abs)])));
+t('The chain is deterministic and four layers say their decision in their own words', () => eq(JSON.stringify(BW.runChain('orders')) === JSON.stringify(BWO) && BW.LAYERS.length === 4 && BW.LAYERS.every((l) => l.says.length === 2), 'not deterministic'));
 
 section('Vocabulary: shipments, depletions and sell-through are different steps');
 t('No screen uses shopper wording for depletions, or borrows sell-in, sell-out or pull-through', () => {
