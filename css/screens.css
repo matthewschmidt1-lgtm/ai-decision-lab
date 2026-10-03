@@ -5,13 +5,8 @@
 .lens-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
 
 /* ---------- Scale ---------- */
-.scale-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(16px, 3vw, 40px); }
-.scale-panel { display: grid; gap: 10px; align-content: start; }
-.scale-panel svg { width: 100%; height: auto; background: var(--paper); border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--line); padding: 8px; }
 
 @media (max-width: 760px) {
-.scale-row { grid-template-columns: 1fr; }
-.scale-panel svg { max-width: 340px; }
 }
 .dg-line { stroke: var(--line-2); stroke-width: 1.5; }
 .dg-line.thin { stroke-width: 0.8; stroke: var(--line-2); }
@@ -69,20 +64,13 @@ body { background: #fff; }
 .belief .seg-b { padding: 10px 8px; }
 }
 /* Three questions, and the pilot */
-.lens-card { background: var(--paper); border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--line); padding: clamp(14px, 2.5vw, 22px); }
-.lens-card .h3 { display: flex; align-items: center; gap: 10px; }
-.lens-card .seg { justify-self: start; }
 .pilot-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, max-content)); gap: 18px 32px; }
 
 @media (max-width: 640px) {
-.lens-card .seg { display: grid; grid-template-columns: 1fr 1fr; width: 100%; border-radius: var(--r-md, 14px); }
 .pilot-controls .seg { max-width: 100%; }
 }
 
 @media (max-width: 640px) {
-.lens-card .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.lens-card .stat { padding: 10px; }
-.lens-card .stat-value { font-size: 1.15rem; }
 }
 .screen.static > *:not(.reveal) { animation: none; }
 
@@ -94,6 +82,16 @@ body { background: #fff; }
 
 
 .lens-dot { flex: none; }
-.lens-card[data-lens="biz"] .lens-dot { background: var(--biz); }
-.lens-card[data-lens="sys"] .lens-dot { background: var(--sys); }
-.lens-card[data-lens="ppl"] .lens-dot { background: var(--ppl); }
+
+/* The three questions, as compact rows */
+.qrow { display: grid; gap: 10px; background: var(--paper); border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--line); padding: clamp(14px, 2.5vw, 20px); }
+.qrow-h { display: flex; align-items: center; gap: 10px; }
+.qrow .seg { justify-self: start; }
+.qrow[data-lens="biz"] .lens-dot { background: var(--biz); }
+.qrow[data-lens="sys"] .lens-dot { background: var(--sys); }
+.qrow[data-lens="ppl"] .lens-dot { background: var(--ppl); }
+/* More neurons */
+.net-row { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 20px; align-items: center; }
+.net-row .stats { grid-template-columns: 1fr 1fr; }
+.net-diagram svg { width: 100%; height: auto; background: var(--paper); border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--line); padding: 6px; }
+@media (max-width: 700px) { .net-row { grid-template-columns: 1fr; } .qrow .seg { display: grid; grid-template-columns: 1fr 1fr; width: 100%; border-radius: var(--r-md, 14px); } }

@@ -149,7 +149,9 @@ export function lineChart(initial) {
     (o.dots || []).forEach((d) => {
       const x = X(d.i), y = Y(d.v);
       if (d.drop) svg.append(s('line', { x1: x, x2: x, y1: y, y2: m.t + ih, class: 'ch-drop', stroke: d.color }));
-      svg.append(s('circle', { cx: x, cy: y, r: 5.5, fill: d.color, class: 'ch-dot' }));
+      svg.append(d.hollow
+        ? s('circle', { cx: x, cy: y, r: d.r || 3.5, class: 'ch-dot hollow', style: `stroke:${d.color}` })
+        : s('circle', { cx: x, cy: y, r: d.r || 5.5, fill: d.color, class: 'ch-dot' }));
       if (d.text) svg.append(s('text', { x: x + (d.dx ?? 10), y: y + (d.dy ?? -10), class: 'ch-dottext', 'text-anchor': d.anchor || 'start' }, d.text));
     });
 

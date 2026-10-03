@@ -1,6 +1,6 @@
 # AI Decision Lab
 
-An interactive lab for nontechnical CPG leaders. They start with a business problem (a bourbon brand whose shipments are down 8% in Texas), see what really happened, test their own beliefs, teach a real neuron to forecast, learn what neural nets are, and design the pilot that would test whether AI helps. It is seven screens, about ten minutes. **AI is not the product. Better decisions are.**
+An interactive lab for nontechnical CPG leaders. They start with a business problem (a bourbon brand whose shipments are down 8% in Texas), see what really happened, test their own beliefs, teach a real neuron to forecast, learn what neural nets are, and design the pilot that would test whether AI helps. It is five screens, about eight minutes. **AI is not the product. Better decisions are.**
 
 - Live: https://ai-decision-lab-production-56eb.up.railway.app (a second domain, `ai-decision-lab-production.up.railway.app`, also serves it)
 - Repo: github.com/matthewschmidt1-lgtm/ai-decision-lab (public, branch `main`)
@@ -12,7 +12,7 @@ Sibling of Decision OS, Friction and Matthew's site. It carries their philosophy
 
 - **Use the three chain terms exactly.** **Shipments** = product the supplier ships to the distributor, nothing else. **Depletions** = product the distributor sells to on- and off-premise accounts, nothing else (the `dep` series). **Sell-through** = consumers buying at retail; the lab has no such series and must never cite one as evidence. Distributor inventory is the gap between shipments and depletions. Never say "shoppers bought", "shopper sales" or "pull-through" for depletions, and never use the three as synonyms. Today's forecast is a forecast of shipments; the simple and AI forecasts forecast depletions. A test run reads the copy for these words.
 - **Zero build.** Vanilla ES modules, plain CSS, hand-drawn SVG, no dependencies. This Mac has no Node/npm, and every sibling project is zero-build. The master prompt prefers React/TS/Vite; the deviation is deliberate. Do not introduce npm tooling.
-- **The ML is real.** Never fake model behaviour with a decorative animation. The model in `js/forecast.js` trains in the browser; the forecast settling, the weights, and divergence at a high learning speed are all the real thing. If a screen shows an AI/ML process, it must be computed.
+- **The ML is real.** Both models on screen 3 train live: the forecasting neuron on the lab's data, and a small neural network (`js/nn.js`) on a labelled toy pattern, with back-propagation checked against a numerical gradient in the tests. The toy's seed was chosen to illustrate memorizing noise, and a test confirms the effect holds in most random draws. Never fake model behaviour with a decorative animation. The model in `js/forecast.js` trains in the browser; the forecast settling, the weights, and divergence at a high learning speed are all the real thing. If a screen shows an AI/ML process, it must be computed.
 - **All data is fictional and deterministic** (seeded generator in `js/data.js`). Numbers must agree across screens, which is why every screen reads from `data.js` / `forecast.js` / `value.js` instead of hard-coding.
 - **Never "guaranteed savings".** Use "potential value", show every assumption, let the user change them, show a range ("scenario bounds, not probabilities"), and say back-tests flatter.
 - **Evaluation integrity (learned the hard way, from six review passes).** Do not weaken these:
@@ -30,7 +30,7 @@ Sibling of Decision OS, Friction and Matthew's site. It carries their philosophy
   - **The pilot simulation is null-aware**: it reports power and the false-alarm rate, calls a win halfway between nothing and the target, and its power depends on how many independent series the pilot covers (the headline uses a stress case where only a third of them average out noise). A target above the best case the back-test allowed is flagged.
 - **No scores, badges, points, leaderboards, accounts, backend.** Choices persist in `localStorage` (`adlab.v3`; bump the key when the state shape changes) so a refresh keeps your place. Nothing leaves the device.
 - **Credibility over promotion.** The lab must be able to conclude "AI isn't the right solution here": screen 4 says most of the gain is not AI, and the pilot brief opens with what to do first without AI.
-- **Keep it short.** The lab was cut from 21 screens to 7 (about 90% fewer words) because testers found it too long. One idea and one thing to do per screen; a test (`tests/run.html`) fails if the lab grows past 7 screens, 260 words on any screen, or 1,300 in total. Cut before adding, and do not expand the MVP (one scenario, open the hood, three lenses, pilot designer) until this loop is excellent. Depth over breadth.
+- **Keep it short.** The lab was cut from 21 screens to 7 and then merged to 5 (about 90% fewer words) because testers found it too long. One idea and one thing to do per screen; a test (`tests/run.html`) fails if the lab grows past 5 screens, 320 words on any screen, or 1,000 in total. Cut before adding, and do not expand the MVP (one scenario, open the hood, three lenses, pilot designer) until this loop is excellent. Depth over breadth.
 
 ## Design language
 
@@ -72,7 +72,8 @@ js/data.js             the hidden truth + observed series; decompose(); stockout
 js/forecast.js         features, gradient descent, exact solve, stability limit, explain, evaluate, rolling origin, bootstrap
 js/value.js            replay, cost curves, calculator, sensitivity, break-even, pilot power simulation
 js/beliefs.js          the six tested beliefs and four verdicts (five are shown)
-js/screens/lab.js      the seven screens: problem, blind spot, teach a neuron, honest test, neural nets, three questions, pilot
+js/screens/lab.js      the five screens: problem, blind spot, how it learns (neuron then network), honest test, pilot (with the three questions)
+js/nn.js               a tiny neural network (tanh hidden layer, Adam), seeded; the toy bend data; used by screen 3
 tests/run.html         browser test runner
 ```
 

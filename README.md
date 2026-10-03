@@ -4,15 +4,13 @@ An interactive lab for CPG leaders. See what really happened to a brand's shipme
 
 > AI is not the product. Better decisions are.
 
-## The experience (seven screens, about ten minutes)
+## The experience (five screens, about eight minutes)
 
 1. **The problem.** A fictional bourbon brand's shipments are down 8% in Texas. Pick the biggest piece of the drop, then see what depletions did.
 2. **The blind spot.** Five beliefs inside how the brand plans. Call each one, then check it against the data.
-3. **Teach a neuron.** A real training run in your browser: random start, measure the miss, nudge the weights. Try too slow and too fast.
+3. **How it learns.** A real training run in your browser: one neuron on the forecast data (random start, measure the miss, nudge the weights; try too slow and too fast), then a small neural network that bends to fit a pattern a line cannot, and memorizes noise when it has too many neurons.
 4. **The honest test.** Today's forecast against a simple no-AI forecast and the AI, on weeks the model never saw.
-5. **Neural nets.** One neuron, a network, a language model: the same loop at three sizes.
-6. **Three questions.** Business, System and People.
-7. **The pilot.** Choose a target, length and scope, check that a test that size could tell, and copy the brief.
+5. **The pilot.** The three questions (Business, System, People), then a target, length and scope, a check that a test that size could tell, and a copyable brief.
 
 Shipments are product the brand ships to distributors. Depletions are what distributors sell to on- and off-premise accounts. Sell-through is consumers buying at retail; the lab has no data for it.
 

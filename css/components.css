@@ -269,3 +269,5 @@ h1:focus, h1:focus-visible { outline: none; }
 }
 .chain-node::after, .chain-node:not(:last-child)::after { content: none !important; }
 
+
+.ch-dot.hollow { fill: none; stroke-width: 1.6; }
