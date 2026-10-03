@@ -1,9 +1,9 @@
 // The lab, in five screens. One idea and one thing to do on each.
-//   1 The problem   2 The blind spot   3 How it learns (one neuron, then more)
-//   4 The honest test   5 The pilot (with the three questions)
+//   1 How the business works (and where AI fits)   2 How it learns (one neuron, then more)
+//   3 What it can learn (claims about AI, tested)   4 The honest test   5 The pilot (with the three questions)
 // Everything is computed live from the data. The models on screen 3 are trained in the browser.
 
-import { h, s, bars, stat, note, mount, int, money, seg, choices, eyebrow } from '../ui.js';
+import { h, s, bars, stat, note, mount, int, money, signed, seg, choices, eyebrow } from '../ui.js';
 import { lineChart } from '../charts.js';
 import { WEEKS, decompose, weekLabel, noiseFloor, COMPETITOR_WEEK, CHAIN_CUT_WEEK } from '../data.js';
 import { ALL_GROUPS, DEFAULT_CAUTION, TEST_WEEKS, trainModel, evaluate, bootstrapReduction, dataset, gradientDescent, solveExact,
@@ -13,15 +13,12 @@ import { toyData, trainNet, predict, mse } from '../nn.js';
 import { VERDICTS, VERDICT, testBeliefs } from '../beliefs.js';
 import { actions, ticksFor, rangeText } from './common.js';
 
-export const STEP_NAMES = ['The problem', 'The blind spot', 'How it learns', 'The honest test', 'The pilot'];
+export const STEP_NAMES = ['The business', 'How it learns', 'What it can learn', 'The honest test', 'The pilot'];
 const TOTAL = STEP_NAMES.length;
 
 const D = decompose();
 const pc = (v, d = 0) => `${(v * 100).toFixed(d)}%`;
 const pcs = (v, d = 1) => `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(d)}%`;
-const abs1 = (v) => Math.abs(v).toFixed(1);
-const ma3 = (arr) => arr.map((_, i) => { const a = arr.slice(Math.max(0, i - 1), i + 2); return a.reduce((x, y) => x + y, 0) / a.length; });
-const slice = (key, from, to) => WEEKS.slice(from, to + 1).map((w) => w[key]);
 
 let _model = null, _eval = null;
 const EVAL = () => (_eval ||= evaluate(MODEL()));
@@ -37,51 +34,63 @@ const top = (n, lens, title, lede) => [
   lede ? h('p', { class: 'lede' }, lede) : null,
 ];
 
-// ---------------------------------------------------------------- 1. The problem
-const FORCES = [
-  { id: 'price', label: 'The April price increase', lower: 'the April price increase' },
-  { id: 'competitor', label: 'A premium rival launching', lower: 'a premium rival launching' },
-  { id: 'distribution', label: 'Chain X dropping our items', lower: 'Chain X dropping our items' },
-  { id: 'inventory', label: 'Distributors working down inventory', lower: 'distributors working down inventory' },
+// ---------------------------------------------------------------- 1. How the business works
+const NODES = [
+  { id: 'supplier', who: 'Ridgeline Bourbon', what: 'the supplier', sees: 'Sees only its shipments.' },
+  { id: 'dist', who: 'Distributors', what: 'three Texas wholesalers', sees: 'See shipments in, depletions out, and their own inventory.' },
+  { id: 'acct', who: 'Accounts', what: 'bars, restaurants and stores', sees: 'See what consumers buy from them.' },
+  { id: 'cons', who: 'Consumers', what: 'the people who drink it', sees: 'Not measured in this lab.' },
+];
+const FLOWS = [
+  { id: 'ship', term: 'Shipments', def: 'supplier to distributor' },
+  { id: 'dep', term: 'Depletions', def: 'distributor to accounts' },
+  { id: 'sell', term: 'Sell-through', def: 'consumers buying from accounts' },
+];
+const DECISIONS = [
+  { id: 'forecast', lit: 'ship', title: 'How many cases to ship each week', sub: 'Supplier to distributor', tone: 'strong', label: 'Good fit',
+    why: 'A prediction made every week, with years of history and a way to score it. This is where AI can earn its place.' },
+  { id: 'alert', lit: 'dist', title: 'When to warn a distributor its inventory is off', sub: 'At the distributor', tone: 'maybe', label: 'A rule is enough',
+    why: 'A threshold on weekly inventory does the job. Use a rule, and save learning for where it adds something.' },
+  { id: 'negotiate', lit: 'acct', title: 'How to answer Chain X’s demands', sub: 'At an account', tone: 'no', label: 'Not an AI problem',
+    why: 'A one-off judgment about a relationship. AI can inform it, but there are no repeated examples to learn from.' },
 ];
 
-const problem = {
-  id: 'problem', title: 'The problem',
+function bizMap(lit) {
+  const row = [];
+  NODES.forEach((n, i) => {
+    row.push(h('div', { class: `biz-node${lit === n.id ? ' lit' : ''}` }, h('b', null, n.who), h('span', null, n.what), h('small', null, n.sees)));
+    const f = FLOWS[i];
+    if (f) row.push(h('div', { class: `biz-flow${lit === f.id ? ' lit' : ''}` }, h('b', null, f.term), h('span', null, f.def), h('i', { 'aria-hidden': 'true' })));
+  });
+  return h('div', { class: 'biz-map' }, h('div', { class: 'biz-row' }, row),
+    h('p', { class: 'micro biz-back' }, 'Money flows back up the chain. So does information, slower and more distorted at each step.'));
+}
+
+const business = {
+  id: 'business', title: 'The business',
   render(ctx) {
     const { state, save } = ctx;
     const root = h('div', { class: 'screen stack-l' });
-    const from = 130, to = 155;
-    const win = (key, a, b) => ma3(slice(key, a - 2, b)).slice(2);
-    const lastYear = win('ship', from - 52, to - 52), shipNow = win('ship', from, to), depl = win('dep', from, to);
-    const chart = (shown) => lineChart({
-      n: shipNow.length, height: 250, yMin: 2800, yFmt: (v) => int(v), direct: true,
-      series: [
-        { name: 'Shipments, last year', short: 'Last year', values: lastYear, color: 'var(--s-current)', dash: '5 5', width: 2 },
-        { name: 'Shipments to distributors, this year', short: 'Shipments', values: shipNow, color: 'var(--ink)', width: 2.5 },
-        ...(shown ? [{ name: 'Depletions (distributor sales to accounts), this year', short: 'Depletions', values: depl, color: 'var(--s-ai)', width: 2.5 }] : []),
-      ],
-      fills: shown ? [{ a: 1, b: 2, posClass: 'up', negClass: 'down' }] : [{ a: 0, b: 1, posClass: 'loss', negClass: 'gain' }],
-      ticks: ticksFor(from, to, 6).filter((_, i) => i % 2 === 0), xLabel: (i) => `Week of ${weekLabel(from + i)}`, tipFmt: (v) => `${int(v)} cases`,
-      desc: 'Weekly shipments to Texas distributors, this year and last, and after you answer, depletions to stores and bars this year.',
-    });
     const paint = () => {
-      const pick = state.read;
-      const forces = FORCES.map((f) => ({ ...f, value: D.pts[f.id] })).sort((a, b) => a.value - b.value);
-      const biggest = forces[0];
+      const pick = DECISIONS.find((d) => d.id === state.decision);
       mount(root,
         h('div', { class: 'stack' },
           eyebrow(null, 'AI Decision Lab', 'for CPG leaders'),
-          h('h1', { class: 'h1 wide' }, `Ridgeline shipments are down ${abs1(D.pct)}% in Texas.`),
-          h('p', { class: 'lede' }, 'Shipments to distributors are well below last year. Which one thing is the biggest piece of the drop?')),
-        chart(!!pick),
-        !pick
-          ? choices({ name: 'Biggest piece', items: FORCES.map((f) => ({ id: f.id, title: f.label })), value: pick, onPick: (id) => { state.read = id; save(); paint(); } })
-          : h('div', { class: 'stack reveal' },
-              h('p', { class: 'verdict' }, pick === biggest.id ? `You called it: ${biggest.lower}.` : `The biggest piece was ${biggest.lower}, not ${FORCES.find((f) => f.id === pick).lower}.`),
-              bars({ items: forces.map((f) => ({ id: f.id, label: f.label, value: f.value, mark: f.id === pick })), max: 5, fmt: (v) => `${v.toFixed(1)} pts` }),
-              h('p', { class: 'small' }, `Points of change in shipments. Other forces, such as promotion, offset part of them, which is why the bars add to more than ${abs1(D.pct)}%. Depletions, what distributors sold on to stores and bars, fell only ${abs1(D.depPct)}%. The gap is distributor inventory, built by earlier shipments and now running down, and that part is temporary. (Estimated with the lab’s answer key; real life has none.)`),
-              note('The point', 'Before asking what AI can do, find out what actually happened.'),
-              actions(ctx, { label: 'What is everyone assuming?' })));
+          h('h1', { class: 'h1 wide' }, 'How the business works.'),
+          h('p', { class: 'lede' }, 'Product flows down a chain. The supplier sees only its own end of it, and that view is the most delayed.')),
+        bizMap(pick ? pick.lit : null),
+        h('div', { class: 'stats' },
+          stat('Shipments', `${signed(D.pct, 1)}%`, 'what Ridgeline sees this quarter', 'bad'),
+          stat('Depletions', `${signed(D.depPct, 1)}%`, 'what distributors sold on'),
+          stat('Sell-through', 'No data', 'consumers buying at retail')),
+        h('p', { class: 'small' }, 'The gap is inventory sitting at distributors. ', h('strong', null, 'Business'), ' is how value flows, ', h('strong', null, 'System'), ' is how information flows, ', h('strong', null, 'People'), ' are who decides at each link.'),
+        h('div', { class: 'stack-s' },
+          h('h3', { class: 'h3' }, 'Every link is a decision. Where would you point AI?'),
+          choices({ name: 'Decision', items: DECISIONS.map((d) => ({ id: d.id, title: d.title, sub: d.sub })), value: state.decision, onPick: (id) => { state.decision = id; save(); paint(); } })),
+        pick ? h('div', { class: 'finding reveal' },
+          h('div', { class: 'finding-head' }, h('span', { class: `chip ${pick.tone}` }, pick.label), h('p', { class: 'says' }, pick.why)),
+          pick.id !== 'forecast' ? h('p', { class: 'small' }, 'The rest of the lab follows the weekly forecast, the decision that fits.') : null) : null,
+        pick ? actions(ctx, { label: 'Teach a model to forecast' }) : null);
       settle(root);
     };
     paint();
@@ -89,43 +98,44 @@ const problem = {
   },
 };
 
-// ---------------------------------------------------------------- 2. The blind spot
-const T = testBeliefs();
-const pct1 = (v) => `${(v * 100).toFixed(1)}%`;
-const BELIEFS = [
-  { id: 'forecast', title: 'Our shipment forecast tells us what will sell.', test: T.forecast,
-    why: (t) => `Against depletions it was ${pcs(t.biasYearOne)} off in its first year, but ${pc(t.biasRecent)} high lately, and within 5% in only ${t.within5} of ${t.weeks} weeks. Right on average, wrong in the weeks that matter.` },
-  { id: 'distributors', title: 'Shipments to a distributor track its depletions.', test: T.distributors,
-    why: (t) => `In ${t.ordWithin3} of ${t.ordinary} ordinary weeks, shipments were within 3% of depletions. But quarter-ends ran ${pcs(t.quarterEnd)} above, and the weeks before the price increase ${pcs(t.preBuy)}.` },
-  { id: 'promo', title: 'Promotion adds depletions.', test: T.promo,
-    why: (t) => `About ${abs1(t.pts)} points of the change in shipments, through depletions. Whether it paid is another matter: the data has no discount or margin to test that.` },
-  { id: 'shelves', title: 'Promotions are what cause our out-of-stocks.', test: T.shelves,
-    why: (t) => `Out-of-stocks were ${pct1(t.during)} during the promotion run (${pct1(t.duringLast)} a year earlier) and rose to ${pct1(t.after)} only after it ended.` },
-  { id: 'distribution', title: 'Losing distribution costs depletions one for one.', test: T.distribution,
-    why: (t) => `The data says about ${t.slope.toFixed(1)} for each 1% of stores carrying us, give or take ${t.half.toFixed(1)}. One-for-one and half that both fit, so it cannot tell.` },
+// ---------------------------------------------------------------- 3. What can it learn?
+const BELIEF_DEFS = [
+  { id: 'history', title: 'If it is accurate on past data, it will be accurate on new data.',
+    why: (t) => `The forecasting neuron missed by ${pc(t.trainWape, 1)} on weeks it learned from and ${pc(t.examWape, 1)} on new ones. The 12-neuron network missed by ${t.net.train.toFixed(1)} on points it learned from and ${t.net.test.toFixed(1)} on new ones.` },
+  { id: 'bigger', title: 'A bigger model is a better model.',
+    why: (t) => `On new points, 12 neurons missed by ${t.t12.toFixed(1)} and 3 neurons by ${t.t3.toFixed(1)}. On the forecast, the AI scored ${pc(t.wapeAI, 1)} against ${pc(t.wapeSimple, 1)} for the simple method.` },
+  { id: 'examples', title: 'More examples make a flexible model more reliable.',
+    why: (t) => `With ${t.nFew} examples, 12 neurons missed new points by ${t.few.toFixed(1)}. With ${t.nMany}, by ${t.many.toFixed(1)}.` },
+  { id: 'proxy', title: 'The numbers we have measure what we care about.',
+    why: (t) => `Shipments are what Ridgeline sees. Over a year they matched depletions (${pcs(t.gapYear)}), but ran ${pcs(t.quarterEnd)} at quarter-end and ${pcs(t.preBuy)} before the price increase.` },
+  { id: 'adoption', title: 'If it is accurate, people will use it.',
+    why: () => 'The lab holds no data on what planners do with a forecast. Only a pilot can tell.' },
 ];
+let _tb = null;
+const beliefs = () => { _tb ||= testBeliefs(); return BELIEF_DEFS.map((b) => ({ ...b, test: _tb[b.id] })); };
 
 const assume = {
-  id: 'assume', title: 'The blind spot',
+  id: 'assume', title: 'What it can learn',
   render(ctx) {
     const { state, save } = ctx;
+    const BELIEFS = beliefs();
     const root = h('div', { class: 'screen stack-l' });
     const paint = () => {
       const bets = state.bets || (state.bets = {});
       const done = BELIEFS.every((b) => bets[b.id]);
       const hits = BELIEFS.filter((b) => bets[b.id] === b.test.verdict).length;
       const intro = h('div', { class: 'stack' },
-        ...top(2, 'biz', 'What is everyone assuming?', state.checked
-          ? `You matched the data on ${hits} of ${BELIEFS.length}. Few of these hold as stated.`
-          : 'Five beliefs sit inside how Ridgeline plans. Call each one, then check.'),
-        h('p', { class: 'small' }, h('strong', null, 'Sometimes'), ' means true on average but not when it matters. ', h('strong', null, 'Can’t tell'), ' means the data cannot say.'));
+        ...top(3, 'sys', 'What can it actually learn?', state.checked
+          ? `You matched the evidence on ${hits} of ${BELIEFS.length}. Claims about AI sound sensible until someone tests them.`
+          : 'Five claims people make about AI. Call each one, then check it against the models you just trained.'),
+        h('p', { class: 'small' }, h('strong', null, 'Sometimes'), ' means true in some cases and false in others. ', h('strong', null, 'Can’t tell'), ' means the lab holds nothing that could say.'));
       if (!state.checked) {
         mount(root, intro,
           h('div', { class: 'beliefs' }, BELIEFS.map((b) => h('div', { class: 'belief' },
             h('p', { class: 'belief-q' }, b.title),
             seg(VERDICTS.map((v) => [v.id, v.short]), bets[b.id], (id) => { bets[b.id] = id; save(); paint(); })))),
           h('div', { class: 'actions' }, h('span', { class: 'micro' }, `${BELIEFS.filter((b) => bets[b.id]).length} of ${BELIEFS.length} called`),
-            h('div', { class: 'actions-r' }, h('button', { class: 'btn', type: 'button', disabled: !done, onClick: () => { state.checked = true; save(); paint(); window.scrollTo({ top: 0 }); } }, 'Check against the data', h('span', { 'aria-hidden': 'true' }, '→')))));
+            h('div', { class: 'actions-r' }, h('button', { class: 'btn', type: 'button', disabled: !done, onClick: () => { state.checked = true; save(); paint(); window.scrollTo({ top: 0 }); } }, 'Check the evidence', h('span', { 'aria-hidden': 'true' }, '→')))));
         settle(root);
         return;
       }
@@ -137,8 +147,8 @@ const assume = {
             h('div', { class: 'belief-chips' }, h('span', { class: `chip ${v.tone}` }, v.short), h('span', { class: 'micro' }, hit ? 'You called it' : `You said: ${mine.short}`)),
             h('p', { class: 'prose' }, b.why(b.test)));
         })),
-        note('The point', 'These were invisible until someone asked. A model trained on them will repeat the mistake, however fast it runs.'),
-        actions(ctx, { label: 'Teach a model to forecast' }));
+        note('The point', 'Ask of any AI claim: what did it learn from, what has it not seen, and what would prove it wrong?'),
+        actions(ctx, { label: 'Did it beat a spreadsheet?' }));
       settle(root);
     };
     paint();
@@ -146,7 +156,7 @@ const assume = {
   },
 };
 
-// ---------------------------------------------------------------- 3. How it learns: one neuron, then more
+// ---------------------------------------------------------------- 2. How it learns: one neuron, then more
 const STEPS = 400;
 // Early steps are shown one by one (that is where the learning is), later ones in longer jumps.
 const framesFor = (steps) => { const out = []; let v = 0; while (v < steps) { out.push(Math.round(v)); v = v < 12 ? v + 1 : v * 1.12; } out.push(steps); return [...new Set(out)]; };
@@ -344,7 +354,7 @@ const learn = {
       stopPanel = panel.stop;
       mount(body,
         h('div', { class: 'stack' },
-          ...top(3, 'sys', stage === 'neuron' ? 'Teach it to forecast.' : 'Now give it more neurons.',
+          ...top(2, 'sys', stage === 'neuron' ? 'Teach it to forecast.' : 'Now give it more neurons.',
             stage === 'neuron'
               ? 'One artificial neuron: inputs times weights, added up. It starts with random weights, so its first forecasts are wild. Then it repeats one move: measure the miss, nudge the weights to shrink it.'
               : 'Add neurons and a model can bend to fit a pattern a line cannot. A neural network is this, stacked. Language models are the same idea with billions of weights.')),
@@ -352,7 +362,7 @@ const learn = {
         panel.node);
     };
     paint();
-    return h('div', { class: 'screen stack-l' }, body, actions(ctx, { label: 'Did it beat a spreadsheet?' }));
+    return h('div', { class: 'screen stack-l' }, body, actions(ctx, { label: 'What can it actually learn?' }));
   },
 };
 
@@ -474,7 +484,7 @@ const pilot = {
           h('dl', null, rows.flatMap(([t, x]) => [h('dt', null, t), h('dd', null, x)]))),
         h('div', { class: 'actions' },
           ctx.hasBack ? h('button', { class: 'back', type: 'button', onClick: ctx.back }, '← Back') : h('span'),
-          h('div', { class: 'actions-r' }, h('button', { class: 'btn ghost', type: 'button', onClick: () => ctx.go('problem') }, 'Start again'))));
+          h('div', { class: 'actions-r' }, h('button', { class: 'btn ghost', type: 'button', onClick: () => ctx.go('business') }, 'Start again'))));
       settle(root);
     };
     paint();
@@ -482,4 +492,4 @@ const pilot = {
   },
 };
 
-export const screens = [problem, assume, learn, test, pilot];
+export const screens = [business, learn, assume, test, pilot];

@@ -1,6 +1,6 @@
 # AI Decision Lab
 
-An interactive lab for nontechnical CPG leaders. They start with a business problem (a bourbon brand whose shipments are down 8% in Texas), see what really happened, test their own beliefs, teach a real neuron to forecast, learn what neural nets are, and design the pilot that would test whether AI helps. It is five screens, about eight minutes. **AI is not the product. Better decisions are.**
+An interactive lab for nontechnical CPG leaders. They start with a map of how the business works (the supplier-to-consumer chain of a bourbon brand whose shipments are down 8% in Texas) and choose where AI fits, then teach a real neuron to forecast, grow it into a small neural network, test five claims about AI against the lab's own models, run the honest test against a no-AI baseline, and design the pilot. It is five screens, about eight minutes. **AI is not the product. Better decisions are.**
 
 - Live: https://ai-decision-lab-production-56eb.up.railway.app (a second domain, `ai-decision-lab-production.up.railway.app`, also serves it)
 - Repo: github.com/matthewschmidt1-lgtm/ai-decision-lab (public, branch `main`)
@@ -24,7 +24,7 @@ Sibling of Decision OS, Friction and Matthew's site. It carries their philosophy
   - **Score replays against depletions with no stockouts** (`want`), not a smooth hidden series, and tune every forecast's cushion the same way.
   - **Uncertainty on every headline**: block-bootstrap 90% ranges, rolling-origin folds, out-of-sample forecast bands. A range that crosses zero is reported as "cannot tell".
   - **Computed text, not canned text.** Any sentence that interprets a number (competitor shift, overconfidence, learning-rate limit, "AI vs simple") must be generated from the numbers, including the case where it comes out the other way.
-  - **Teaching beliefs must be decidable and not rigged.** The "What is everyone assuming?" screen (`js/beliefs.js`) has six beliefs, each tested with a measurable rule on the observable data, with four verdicts (holds / some conditions / not supported / can't be tested). At least one must genuinely hold and several must be "true on average, false where it counts"; a lesson where every answer is "false" teaches the wrong thing. Learners call each verdict before the data is shown. Verdicts and numbers are computed, and tests assert they never read the hidden `demand`/`want`/`expect` columns.
+  - **Teaching claims must be decidable and not rigged.** The "What can it actually learn?" screen (`js/beliefs.js`) has five claims about AI, each tested by running the lab's own models (the forecasting neuron, the toy network), with four verdicts (holds / sometimes / not supported / can't tell). All four verdicts must appear, so the lesson is never "every claim is false". Learners call each verdict before the evidence is shown. Verdicts and numbers are computed, tests assert them, and tests assert they never read the hidden `demand`/`want`/`expect` columns. Claims about people (adoption) are honestly "can't tell": only a pilot can answer them.
   - **Label oracles.** The decomposition and the "learned vs true" table use hidden generator truth; the screens say so.
   - **Bootstraps use circular blocks** (block starts uniform over all weeks), otherwise edge weeks are under-sampled and false alarms understated. `tests/run.html` asserts the simulated worlds are unbiased.
   - **The pilot simulation is null-aware**: it reports power and the false-alarm rate, calls a win halfway between nothing and the target, and its power depends on how many independent series the pilot covers (the headline uses a stress case where only a third of them average out noise). A target above the best case the back-test allowed is flagged.
@@ -71,8 +71,8 @@ js/charts.js           lineChart (bands, fills between lines, markers, log axis)
 js/data.js             the hidden truth + observed series; decompose(); stockoutLoss(); inventoryEstimate(); noiseFloor()
 js/forecast.js         features, gradient descent, exact solve, stability limit, explain, evaluate, rolling origin, bootstrap
 js/value.js            replay, cost curves, calculator, sensitivity, break-even, pilot power simulation
-js/beliefs.js          the six tested beliefs and four verdicts (five are shown)
-js/screens/lab.js      the five screens: problem, blind spot, how it learns (neuron then network), honest test, pilot (with the three questions)
+js/beliefs.js          five claims about AI, each tested by running the lab's own models, and the four verdicts
+js/screens/lab.js      the five screens: business map, how it learns (neuron then network), what it can learn (claims about AI), honest test, pilot (with the three questions)
 js/nn.js               a tiny neural network (tanh hidden layer, Adam), seeded; the toy bend data; used by screen 3
 tests/run.html         browser test runner
 ```

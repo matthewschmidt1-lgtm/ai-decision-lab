@@ -138,21 +138,17 @@ t('Features: every combination trains and scores, at every caution level', () =>
   }
 });
 
-section('The blind spot: six beliefs, tested');
+section('What it can learn: five claims about AI, tested by the lab\u2019s own models');
 const B = testBeliefs();
-t('The six verdicts are computed from the data, and the set is not rigged: one belief holds', () => {
+t('Five claims, each with a computed verdict, and all four verdicts appear (so it is not rigged either way)', () => {
   const v = Object.values(B).map((b) => b.verdict);
-  return eq(v.length === 6 && v.every((x) => VERDICTS.some((y) => y.id === x)) && v.includes('holds'), v.join());
+  return eq(v.length === 5 && v.every((x) => VERDICTS.some((y) => y.id === x)) && VERDICTS.every((x) => v.includes(x.id)), v.join());
 });
-t('At least one belief is only conditionally true, one unsupported, one untestable', () => {
-  const v = Object.values(B).map((b) => b.verdict);
-  return eq(['conditions', 'unsupported', 'untestable'].every((x) => v.includes(x)), v.join());
-});
-t('Forecast: right on average in year one, high when it matters, and rarely within 5%', () => eq(Math.abs(B.forecast.biasYearOne) < 0.03 && B.forecast.biasRecent > 0.05 && B.forecast.within5 / B.forecast.weeks < 0.6, JSON.stringify(B.forecast)));
-t('Shipments vs depletions: about even over a year, far apart at quarter-end and around the price increase', () => eq(Math.abs(B.distributors.gapYear) < 0.02 && B.distributors.quarterEnd > 0.05 && B.distributors.quarterStart < -0.05 && B.distributors.preBuy > 0.05 && B.distributors.postBuy < -0.05, JSON.stringify(B.distributors)));
-t('Promotion adds depletions, and the profit break-even is a positive discount below the price', () => eq(B.promo.pts > 0 && B.promo.breakEven > 0 && B.promo.breakEven < D.REVENUE_PER_CASE, JSON.stringify(B.promo)));
-t('Distribution: the estimate’s range holds both one-for-one and half', () => eq(B.distribution.lo < 0.5 && B.distribution.hi > 1, JSON.stringify(B.distribution)));
-t('Out-of-stocks were normal during the promotion run and rose only after it', () => eq(B.shelves.during - B.shelves.duringLast < 0.01 && B.shelves.after - B.shelves.afterLast > 0.015, JSON.stringify(B.shelves)));
+t('Accuracy on history: a simple neuron holds up on new weeks, a 12-neuron network does not', () => eq(Math.abs(B.history.examWape - B.history.trainWape) < 0.02 && B.history.net.test > B.history.net.train * 1.5, JSON.stringify(B.history)));
+t('A bigger model is not better: 12 neurons do worse than 3 on points they never saw', () => eq(B.bigger.t12 > B.bigger.t3, JSON.stringify(B.bigger)));
+t('More examples help a flexible model on the same unseen points', () => eq(B.examples.many < B.examples.few - 1, JSON.stringify(B.examples)));
+t('Shipments are a proxy: even over a year, far apart at quarter-end and around the price increase', () => eq(Math.abs(B.proxy.gapYear) < 0.02 && B.proxy.quarterEnd > 0.05 && B.proxy.preBuy > 0.05, JSON.stringify(B.proxy)));
+t('Adoption cannot be tested from this data, and the lab says so', () => eq(B.adoption.verdict === 'untestable', 'adoption was scored'));
 t('Beliefs never read the hidden truth columns', () => {
   const before = JSON.stringify(testBeliefs());
   const saved = D.WEEKS.map((w) => [w.demand, w.want, w.expect]);
@@ -167,7 +163,7 @@ const words = (el) => { const c = el.cloneNode(true); c.querySelectorAll('svg').
 t('The lab is five screens', () => eq(screens.length === 5, `${screens.length}`));
 t('Every screen renders, and none carries more than 320 words outside its charts (all together under 1,000)', () => {
   const saved = JSON.stringify(state);
-  state.bets = Object.fromEntries(['forecast', 'distributors', 'promo', 'shelves', 'distribution'].map((k) => [k, 'holds'])); state.checked = true; state.read = 'price';
+  state.bets = Object.fromEntries(['history', 'bigger', 'examples', 'proxy', 'adoption'].map((k) => [k, 'holds'])); state.checked = true; state.decision = 'forecast';
   const noop = () => {};
   const counts = screens.map((sc) => { const el = sc.render({ state, save: noop, next: noop, back: noop, go: noop, hasBack: true, rerender: noop }); return [sc.id, words(el)]; });
   Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, JSON.parse(saved));
@@ -211,7 +207,7 @@ t('No screen uses shopper wording for depletions, or borrows sell-in, sell-out o
   const banned = /shopper|pull-through|sell-out|sell-in|what shoppers|consumers bought/i;
   const texts = [];
   for (const checked of [false, true]) {
-    state.bets = Object.fromEntries(['forecast', 'distributors', 'promo', 'shelves', 'distribution'].map((k) => [k, 'holds'])); state.checked = checked; state.read = 'price'; state.sysWorry = 'data'; state.pplWorry = 'trust';
+    state.bets = Object.fromEntries(['history', 'bigger', 'examples', 'proxy', 'adoption'].map((k) => [k, 'holds'])); state.checked = checked; state.decision = 'forecast'; state.sysWorry = 'data'; state.pplWorry = 'trust';
     for (const sc of screens) {
       const el = sc.render({ state, save: noop, next: noop, back: noop, go: noop, hasBack: true, rerender: noop });
       el.querySelectorAll('svg [aria-label], [aria-label], [title]').forEach((n) => texts.push([sc.id, n.getAttribute('aria-label') || n.getAttribute('title')]));

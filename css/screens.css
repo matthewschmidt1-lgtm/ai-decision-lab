@@ -95,3 +95,28 @@ body { background: #fff; }
 .net-row .stats { grid-template-columns: 1fr 1fr; }
 .net-diagram svg { width: 100%; height: auto; background: var(--paper); border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--line); padding: 6px; }
 @media (max-width: 700px) { .net-row { grid-template-columns: 1fr; } .qrow .seg { display: grid; grid-template-columns: 1fr 1fr; width: 100%; border-radius: var(--r-md, 14px); } }
+
+/* How the business works: a chain, left to right */
+.biz-map { display: grid; gap: 12px; }
+.biz-row { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr) minmax(0, 1.15fr) minmax(0, 0.85fr) minmax(0, 1.15fr) minmax(0, 0.85fr) minmax(0, 1.15fr); align-items: stretch; }
+.biz-node { background: var(--paper); border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--line); padding: 14px; display: grid; gap: 4px; align-content: start; transition: box-shadow var(--dur-fast), background var(--dur-fast); }
+.biz-node b { font: 650 1rem var(--font-display); letter-spacing: -0.01em; }
+.biz-node span { color: var(--ink-2); font-size: var(--fs-small); }
+.biz-node small { color: var(--muted); font-size: 0.78rem; line-height: 1.4; margin-top: 6px; }
+.biz-flow { display: grid; place-content: center; justify-items: center; text-align: center; gap: 2px; padding: 6px 4px; }
+.biz-flow b { font: 600 0.72rem var(--mono); text-transform: uppercase; letter-spacing: 0.04em; }
+.biz-flow span { font-size: 0.72rem; color: var(--muted); line-height: 1.3; }
+.biz-flow i { display: block; position: relative; width: 100%; height: 2px; background: var(--line-2); margin-top: 8px; }
+.biz-flow i::after { content: ""; position: absolute; right: 0; top: -4px; border-left: 7px solid var(--line-2); border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+.biz-node.lit { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); }
+.biz-flow.lit b { color: var(--accent); }
+.biz-flow.lit i { background: var(--accent); }
+.biz-flow.lit i::after { border-left-color: var(--accent); }
+.biz-back { text-align: center; }
+@media (max-width: 860px) {
+  .biz-row { grid-template-columns: 1fr; }
+  .biz-flow { grid-auto-flow: column; justify-content: start; justify-items: start; gap: 10px; padding: 10px 14px; text-align: left; }
+  .biz-flow i { width: 2px; height: 22px; margin: 0; order: -1; }
+  .biz-flow i::after { right: auto; left: -4px; top: auto; bottom: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid var(--line-2); border-bottom: 0; }
+  .biz-flow.lit i::after { border-top-color: var(--accent); border-left-color: transparent; }
+}

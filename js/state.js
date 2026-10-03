@@ -6,7 +6,7 @@ import { DEFAULTS } from './value.js';
 const KEY = 'adlab.v3';
 
 const fresh = () => ({
-  read: null,           // the force they thought was the biggest piece of the drop
+  decision: null,       // the decision they would point AI at on the business map
   bets: {},             // their call on each belief, before they see the data
   checked: false,       // whether they have checked those calls against the data
   value: { ...DEFAULTS },

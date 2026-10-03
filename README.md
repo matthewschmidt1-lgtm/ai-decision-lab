@@ -6,9 +6,9 @@ An interactive lab for CPG leaders. See what really happened to a brand's shipme
 
 ## The experience (five screens, about eight minutes)
 
-1. **The problem.** A fictional bourbon brand's shipments are down 8% in Texas. Pick the biggest piece of the drop, then see what depletions did.
-2. **The blind spot.** Five beliefs inside how the brand plans. Call each one, then check it against the data.
-3. **How it learns.** A real training run in your browser: one neuron on the forecast data (random start, measure the miss, nudge the weights; try too slow and too fast), then a small neural network that bends to fit a pattern a line cannot, and memorizes noise when it has too many neurons.
+1. **How the business works.** The chain from supplier to distributor to accounts to consumers: what flows each way, what each link can see, and where information gets distorted. Then pick which decision to point AI at, and see whether AI, a simple rule or neither is the right tool.
+2. **How it learns.** A real training run in your browser: one neuron on the forecast data (random start, measure the miss, nudge the weights; try too slow and too fast), then a small neural network that bends to fit a pattern a line cannot, and memorizes noise when it has too many neurons.
+3. **What it can learn.** Five claims people make about AI. Call each one, then check it against the models you just trained.
 4. **The honest test.** Today's forecast against a simple no-AI forecast and the AI, on weeks the model never saw.
 5. **The pilot.** The three questions (Business, System, People), then a target, length and scope, a check that a test that size could tell, and a copyable brief.
 
