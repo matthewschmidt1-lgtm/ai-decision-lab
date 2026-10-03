@@ -1,10 +1,10 @@
-// The lab, in six screens. One idea and one thing to do on each.
-//   1 Which loop are you in? (and who does each job better)   2 Where does the time go?
+// The lab, in seven screens. One idea and one thing to do on each.
+//   1 Which loop are you in? (and what happens if each job goes wrong)   2 Where does the time go?
 //   3 How it learns (one neuron, then more)   4 The honest test
-//   5 Make it stick (the three lenses and the gap between them)   6 The pilot
+//   5 Make it stick (the three lenses and the gap)   6 Is it safe to try?   7 The pilot
 // Everything is computed live. The models on screen 3 are trained in the browser.
 
-import { h, s, bars, stat, note, mount, int, money, slider, seg, choices, eyebrow } from '../ui.js';
+import { h, s, bars, stat, note, mount, int, money, slider, seg, choices, eyebrow, table } from '../ui.js';
 import { lineChart } from '../charts.js';
 import { WEEKS, weekLabel, noiseFloor, COMPETITOR_WEEK, CHAIN_CUT_WEEK } from '../data.js';
 import { ALL_GROUPS, DEFAULT_CAUTION, TEST_WEEKS, trainModel, evaluate, bootstrapReduction, dataset, gradientDescent, solveExact,
@@ -12,10 +12,10 @@ import { ALL_GROUPS, DEFAULT_CAUTION, TEST_WEEKS, trainModel, evaluate, bootstra
 import { SCOPES, pairGain, simulatePilot } from '../value.js';
 import { toyData, trainNet, predict, mse } from '../nn.js';
 import { testBeliefs } from '../beliefs.js';
-import { WEEK, DESTINATIONS, DEST, WEEK_HOURS, TEAM, freedHours, weekAfter, annual, REVIEW, reviewHours } from '../time.js';
+import { WEEK, DESTINATIONS, DEST, TEAM, WORK_WEEKS, RATE, ROUTINE_HOURS, grossHours, netHours, freedHours, routineShare, weekAfter, annualRange, REVIEW, reviewHours } from '../time.js';
 import { actions, ticksFor, rangeText } from './common.js';
 
-export const STEP_NAMES = ['The loops', 'Time and focus', 'How it learns', 'The honest test', 'Make it stick', 'The pilot'];
+export const STEP_NAMES = ['The loops', 'Time and focus', 'How it learns', 'The honest test', 'Make it stick', 'Safe to try', 'The pilot'];
 const TOTAL = STEP_NAMES.length;
 
 const pc = (v, d = 0) => `${(v * 100).toFixed(d)}%`;
@@ -40,32 +40,64 @@ const top = (n, lens, title, lede) => [
 
 // ---------------------------------------------------------------- 1. Which loop are you in?
 const LOOPS = [
-  { id: 'activity', name: 'The activity loop', path: ['Data', 'Deck', 'Meeting', 'Deck', 'Meeting'], line: 'A lot of activity, not much progress.' },
+  { id: 'activity', name: 'The activity loop', path: ['Data', 'Spreadsheet', 'Deck', 'Meeting', '“Can you cut it another way?”', 'Spreadsheet'], line: 'A lot of activity, not much progress.' },
   { id: 'learning', name: 'The learning loop', path: ['Signal', 'Understanding', 'Decision', 'Action', 'Learning'], line: 'Every decision makes the next one better.' },
 ];
 export const WHO = [['human', 'Human'], ['computer', 'Computer'], ['together', 'Together']];
 const WHO_LABEL = Object.fromEntries(WHO);
-export const TASKS = [
-  { id: 'pattern', text: 'Spot a weekly pattern in three years of orders', best: 'computer', why: 'Pattern-finding across years of numbers is tireless work for a computer.' },
-  { id: 'chain', text: 'Decide whether to give Chain X the price it wants', best: 'human', why: 'A relationship, a judgment and an accountable owner.' },
-  { id: 'reconcile', text: 'Reconcile two distributors’ spreadsheets', best: 'computer', why: 'Fast, exact matching, and a poor use of a planner’s attention.' },
-  { id: 'draft', text: 'Draft next week’s forecast, then check it against what you know', best: 'together', why: 'The computer drafts in seconds. A person catches what the numbers cannot see.' },
-  { id: 'rival', text: 'Notice that a rival’s launch changes what history says', best: 'human', why: 'Context from outside the data. A model only knows what it was shown.' },
-];
 const TONE = { human: 'who-human', computer: 'who-computer', together: 'who-together' };
+// The right workflow is not set by capability alone. It is capability, uncertainty and consequence.
+export const TASKS = [
+  { id: 'pattern', text: 'Spot a weekly pattern in three years of orders', best: 'computer', cap: 'High', unc: 'Low', con: 'Low',
+    design: 'The computer, spot-checked by a person.',
+    fail: { computer: 'It may find a pattern that is not real. Cheap to check, cheap to be wrong.', human: 'Too slow to read three years of weeks, so the pattern is never found.', together: 'A sound default: the computer finds it, a person sanity-checks it.' } },
+  { id: 'chain', text: 'Decide whether to give Chain X the price it wants', best: 'together', cap: 'Medium', unc: 'High', con: 'High',
+    design: 'A person decides and is accountable, with the computer supporting the analysis.',
+    fail: { computer: 'It optimizes on what Chain X has paid before. The relationship takes the damage.', human: 'Ignoring the data leaves money on the table.', together: 'The computer brings elasticity and profitability. A person owns the call.' } },
+  { id: 'reconcile', text: 'Reconcile two distributors’ spreadsheets', best: 'computer', cap: 'High', unc: 'Low', con: 'Medium',
+    design: 'The computer, with automatic checks and flagged exceptions.',
+    fail: { computer: 'A silent mismatch slips through unless it checks itself.', human: 'Slow, and a tired eye misses rows.', together: 'The computer matches. A person reviews only the rows it flags.' } },
+  { id: 'draft', text: 'Draft next week’s forecast, then check it against what you know', best: 'together', cap: 'High', unc: 'Medium', con: 'Medium',
+    design: 'The computer drafts, a person checks.',
+    fail: { computer: 'An AI error becomes an inventory problem.', human: 'A human error is a missed signal.', together: 'The combined workflow can catch both.' } },
+  { id: 'rival', text: 'Notice that a rival’s launch changes what history says', best: 'human', cap: 'Low', unc: 'High', con: 'Medium',
+    design: 'A person leads. The computer can flag unusual weeks.',
+    fail: { computer: 'The model sees the historical pattern and forecasts as if nothing happened.', human: 'A person notices the new event, overrides the model and reframes it.', together: 'Even better if the computer flags unusual weeks and a person decides what they mean.' } },
+];
 
 const loops = {
   id: 'loops', title: 'The loops',
   render(ctx) {
     const { state, save } = ctx;
     const root = h('div', { class: 'screen stack-l' });
+    let cur = null;
     const paint = () => {
       const sorts = {};
       TASKS.forEach((t) => { if (WHO_LABEL[state.sorts && state.sorts[t.id]]) sorts[t.id] = state.sorts[t.id]; });
       state.sorts = sorts;
-      if (state.sorted && !TASKS.every((t) => sorts[t.id])) state.sorted = false;
-      const done = TASKS.every((t) => sorts[t.id]);
-      const hits = TASKS.filter((t) => sorts[t.id] === t.best).length;
+      state.sorted = TASKS.every((t) => sorts[t.id]);
+      if (cur === null) cur = state.sorted ? TASKS.length : TASKS.findIndex((t) => !sorts[t.id]);
+      const t = TASKS[cur];
+      let job;
+      if (!t) {
+        job = h('div', { class: 'stack-s reveal' },
+          h('h3', { class: 'h3' }, 'The right workflow depends on three things, not one.'),
+          table(['Job', 'Computer can', 'Uncertainty', 'Cost of a mistake', 'Usual design'],
+            TASKS.map((x) => [x.text, x.cap, x.unc, x.con, x.design])),
+          h('p', { class: 'small' }, 'Capability, uncertainty and consequence set the workflow. Context can change any of these answers, so treat them as a starting design, not a rule.'));
+      } else if (!sorts[t.id]) {
+        job = h('div', { class: 'stack-s' }, h('div', { class: 'micro' }, `Job ${cur + 1} of ${TASKS.length}`),
+          h('div', { class: 'belief' }, h('p', { class: 'belief-q' }, t.text), h('p', { class: 'small' }, 'Who should do this?'),
+            seg(WHO, null, (id) => { sorts[t.id] = id; state.sorts = sorts; save(); paint(); })));
+      } else {
+        const mine = sorts[t.id];
+        job = h('div', { class: 'stack-s reveal' }, h('div', { class: 'micro' }, `Job ${cur + 1} of ${TASKS.length}`),
+          h('div', { class: 'belief result' }, h('p', { class: 'belief-q' }, t.text),
+            h('div', { class: 'belief-chips' }, h('span', { class: `chip ${TONE[mine]}` }, `You said: ${WHO_LABEL[mine]}`), h('span', { class: 'micro' }, `Usual design: ${t.design}`)),
+            h('h4', { class: 'small' }, 'What happens if it goes wrong?'),
+            h('ul', { class: 'fail' }, WHO.map(([k, label]) => h('li', { class: k === mine ? 'mine' : '' }, h('b', null, `${label}: `), t.fail[k])))),
+          h('div', null, h('button', { class: 'btn small', type: 'button', onClick: () => { cur += 1; paint(); } }, cur + 1 < TASKS.length ? 'Next job' : 'See the pattern', h('span', { 'aria-hidden': 'true' }, '→'))));
+      }
       mount(root,
         h('div', { class: 'stack' },
           eyebrow(null, 'AI Decision Lab', 'for CPG leaders'),
@@ -79,19 +111,8 @@ const loops = {
           h('p', { class: 'small' }, 'Which is closer to your organization?'),
           seg([['activity', 'Mostly activity'], ['both', 'Both'], ['learning', 'Mostly learning']], state.loop, (id) => { state.loop = id; save(); paint(); }),
           state.loop ? h('p', { class: 'small reveal' }, 'Most organizations run both. AI pays off where it shortens the activity loop and speeds up the learning loop.') : null),
-        h('div', { class: 'stack-s' },
-          h('h3', { class: 'h3' }, state.sorted ? `Who does each job better? You matched ${hits} of ${TASKS.length}.` : 'Who does each job better?'),
-          h('div', { class: 'beliefs' }, TASKS.map((t) => {
-            if (!state.sorted) return h('div', { class: 'belief' }, h('p', { class: 'belief-q' }, t.text), seg(WHO, sorts[t.id], (id) => { sorts[t.id] = id; state.sorts = sorts; save(); paint(); }));
-            const hit = sorts[t.id] === t.best;
-            return h('div', { class: `belief result${hit ? ' hit' : ''}` }, h('p', { class: 'belief-q' }, t.text),
-              h('div', { class: 'belief-chips' }, h('span', { class: `chip ${TONE[t.best]}` }, WHO_LABEL[t.best]), h('span', { class: 'micro' }, hit ? 'You called it' : `You said: ${WHO_LABEL[sorts[t.id]]}`)),
-              h('p', { class: 'small' }, t.why));
-          }))),
-        state.sorted
-          ? actions(ctx, { label: 'Where does the time go?' })
-          : h('div', { class: 'actions' }, h('span', { class: 'micro' }, `${TASKS.filter((t) => sorts[t.id]).length} of ${TASKS.length} called`),
-              h('div', { class: 'actions-r' }, h('button', { class: 'btn', type: 'button', disabled: !done, onClick: () => { state.sorted = true; save(); paint(); } }, 'Check', h('span', { 'aria-hidden': 'true' }, '→')))));
+        h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'Who should do each job? Then ask what happens if you get it wrong.'), job),
+        !t ? actions(ctx, { label: 'Where does the time go?' }) : null);
       settle(root);
     };
     paint();
@@ -102,7 +123,14 @@ const loops = {
 // ---------------------------------------------------------------- 2. Where does the time go?
 const SEG_COLOR = {
   gather: 'color-mix(in srgb, var(--sys) 100%, var(--paper))', forecast: 'color-mix(in srgb, var(--sys) 60%, var(--paper))',
-  decks: 'var(--line-2)', review: 'var(--muted)', judgment: 'var(--biz)', markets: 'var(--ppl)',
+  decks: 'var(--line-2)', review: 'var(--muted)', judgment: 'var(--biz)', markets: 'var(--ppl)', experiments: 'var(--accent)',
+  checking: 'repeating-linear-gradient(135deg, var(--muted) 0 4px, var(--paper) 4px 8px)',
+};
+const OUTCOME = {
+  none: 'No value: the hours refill',
+  cost: 'Cost avoided, if it avoids a hire',
+  capacity: 'Capacity for judgment, a saving only if headcount changes',
+  learning: 'Learning, value not yet measured',
 };
 
 function weekBar(rows) {
@@ -115,33 +143,36 @@ const time = {
   id: 'time', title: 'Time and focus',
   render(ctx) {
     const { state, save } = ctx;
-    const share = () => (typeof state.autoShare === 'number' ? state.autoShare : 0.6);
+    const share = () => (typeof state.autoShare === 'number' ? Math.min(1, Math.max(0, state.autoShare)) : 0.6);
     const dest = () => (DEST[state.destination] ? state.destination : 'judgment');
     const out = h('div', { class: 'stack' });
     const paintOut = () => {
-      const f = freedHours(share()), a = annual(share(), dest());
-      const rows = weekAfter(share(), dest());
+      const s0 = share(), d = dest();
+      const net = netHours(s0), gross = grossHours(s0);
+      const rg = annualRange(s0, d), a = rg.mid;
+      const rows = weekAfter(s0, d);
+      const keyRows = [...WEEK, { id: 'checking', label: 'New work: checking AI output' }, ...(d === 'markets' ? [{ id: 'markets', label: 'More brands and markets' }] : d === 'experiments' ? [{ id: 'experiments', label: 'Testing new ideas' }] : [])];
       mount(out,
+        h('p', { class: 'verdict' }, `You just gave each planner ${hrs(net)} back, every week. What will the business do with them?`),
         h('div', { class: 'wk' },
           h('div', { class: 'wk-row' }, h('span', { class: 'wk-label' }, 'Today'), weekBar(WEEK.map((w) => ({ id: w.id, label: w.label, hours: w.hours })))),
           h('div', { class: 'wk-row' }, h('span', { class: 'wk-label' }, 'With AI'), weekBar(rows))),
-        h('div', { class: 'wk-key small' }, [...WEEK, { id: 'markets', label: 'More brands and markets' }].filter((w) => w.id !== 'markets' || dest() === 'markets')
-          .map((w) => h('span', null, h('i', { style: { background: SEG_COLOR[w.id] } }), w.label))),
+        h('div', { class: 'wk-key small' }, keyRows.map((w) => h('span', null, h('i', { style: { background: SEG_COLOR[w.id] } }), w.label))),
+        h('p', { class: 'small' }, `Automation releases ${hrs(gross)} (${pc(routineShare(s0))} of the ${ROUTINE_HOURS} routine hours), less ${hrs(gross - net)} of new checking work.`),
+        h('div', { class: 'loop-path flow' }, [`Automation ${pc(s0)}`, `Hours released ${hrs(net)}`, `Redeployed: ${DEST[d].label.toLowerCase()}`, OUTCOME[DEST[d].kind]].flatMap((t, i, arr) => [h('span', null, t), i < arr.length - 1 ? h('i', { 'aria-hidden': 'true' }, '→') : null])),
         h('div', { class: 'stats' },
-          stat('Freed per planner', `${hrs(f)} a week`, `of a ${WEEK_HOURS}-hour week`, 'ai'),
-          stat('Freed across the team', `${Math.round(a.hours).toLocaleString('en-US')} h`, `${TEAM} planners, a year`),
-          stat('Worth', a.value ? money(a.value) : '$0', a.value ? 'in planner time, once redeployed' : 'the hours just refill')),
-        a.value
-          ? h('p', { class: 'small' }, 'Time is only value once it is redeployed. What it earns beyond that, fewer misses and better customer calls, is for a pilot to measure. A spreadsheet frees some of this too.')
-          : h('p', { class: 'small' }, 'Saved time that goes nowhere in particular is worth nothing. The calendar fills.'));
+          stat('Net hours back', `${hrs(net)} a week`, `range ${hrs(rg.low.perWeek)} to ${hrs(rg.high.perWeek)}`, 'ai'),
+          stat('Capacity created', `${Math.round(a.hours).toLocaleString('en-US')} h`, `a year: ${TEAM} planners, ${WORK_WEEKS} weeks`),
+          stat(a.value ? 'At cost, up to' : 'Value', a.value ? money(a.value) : '$0', a.value ? OUTCOME[a.kind].toLowerCase() : 'the hours refill')),
+        h('p', { class: 'small' }, `Assumes ${WORK_WEEKS} working weeks, ${TEAM} planners and $${RATE} an hour fully loaded. The week itself is illustrative. Capacity is not savings, and neither is business value: those depend on what happens next. Would you still fund it at the low end (${hrs(rg.low.perWeek)} a week)?`));
     };
-    const sl = slider({ label: 'How much of the routine work the computer takes over', min: 0, max: 1, step: 0.1, value: share(), fmt: (v) => pc(v), onInput: (v) => { state.autoShare = v; save(); paintOut(); } });
+    const sl = slider({ label: 'How far to push automation', min: 0, max: 1, step: 0.1, value: share(), fmt: (v) => pc(v), hint: 'At 100% a computer takes over everything it realistically can.', onInput: (v) => { state.autoShare = v; save(); paintOut(); } });
     const dst = h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'Where do the freed hours go?'),
       choices({ name: 'Destination', items: DESTINATIONS.map((d) => ({ id: d.id, title: d.label, sub: d.sub })), value: dest(), onPick: (id) => { state.destination = id; save(); paintOut(); } }));
     paintOut();
     return h('div', { class: 'screen stack-l' },
       h('div', { class: 'stack' }, ...top(2, 'biz', 'Where does the time go?',
-        'Time and focus are what a business runs short of. Here is one planner’s week (an illustrative assumption). Gathering and reconciling feel like the job. They are what everyone has learned to accept.')),
+        'Time and focus are what a business runs short of. Here is one planner’s week. Gathering and reconciling feel like the job. They are what everyone has learned to accept.')),
       sl, out, dst,
       actions(ctx, { label: 'How does the computer part learn?' }));
   },
@@ -188,7 +219,7 @@ function neuronPanel(onMore) {
     ticks: ticksFor(dw[0], dw[dw.length - 1], 13), xLabel: (i) => weekLabel(dw[i]),
     desc: 'The model’s forecast for its learning weeks, starting wild and settling toward actual depletions as it learns.',
   });
-  const barsHost = h('div'), readout = h('div', { class: 'stats' }), msg = h('div'), speedBox = h('div');
+  const barsHost = h('div'), readout = h('div', { class: 'stats' }), msg = h('div'), speedBox = h('div'), roundBox = h('div', { class: 'loop-path flow' });
   let timer = null, run = 0, cancel = () => {};
   const stop = () => { clearInterval(timer); run++; cancel(); };
 
@@ -197,6 +228,8 @@ function neuronPanel(onMore) {
     hero.update({ series: [S0, modelLine(predAt(sn))] });
     mount(barsHost, bars({ items: names.map((n, j) => ({ label: n, value: sn.w[j], color: sn.w[j] >= 0 ? 'var(--accent)' : 'var(--ink-2)' })), max: wMax, animate: false, fmt: (v) => v.toFixed(3) }));
     const miss = Math.sqrt(sn.loss) * 100;
+    const last = dw.length - 1, pred = predAt(sn)[last], miss1 = pred - actual[last];
+    mount(roundBox, [`Model says ${int(pred)}`, `Actual ${int(actual[last])}`, `Miss ${miss1 >= 0 ? '+' : '−'}${int(Math.abs(miss1))}`, diverged ? 'Nudges overshoot' : k >= STEPS ? 'Weights settled' : 'Adjust the weights, try again'].flatMap((t, i, arr) => [h('span', null, t), i < arr.length - 1 ? h('i', { 'aria-hidden': 'true' }, '→') : null]));
     mount(readout,
       stat('Step', String(k), `of ${STEPS}`),
       stat('Typical error', Number.isFinite(miss) && miss < 1000 ? `${miss.toFixed(1)}%` : 'Blown up', `on these weeks. Best this model can do: ${(Math.sqrt(floor) * 100).toFixed(1)}%`, diverged ? 'bad' : 'ai'));
@@ -240,9 +273,11 @@ function neuronPanel(onMore) {
 
   const node = h('div', { class: 'stack-l' },
     hero,
+    h('div', { class: 'stack-s' }, h('div', { class: 'micro' }, 'One example week, one round of learning'), roundBox),
     h('div', { class: 'learn-controls' }, speedBox, h('button', { class: 'btn small', type: 'button', onClick: start }, 'Replay')),
     readout, msg,
-    h('div', { class: 'stack-s' }, h('div', { class: 'micro' }, 'The weights: how hard each input pushes the forecast'), barsHost));
+    h('div', { class: 'stack-s' }, h('div', { class: 'micro' }, 'The weights: how hard each input pushes the forecast'), barsHost,
+      h('p', { class: 'micro' }, 'The forecast scored on the next page uses the same recipe, and solves for the best weights directly.')));
   return { node, stop };
 }
 
@@ -253,11 +288,16 @@ const NET_FRAMES = framesFor(NET_STEPS);
 const NET_OPTS = [[0, 'One neuron'], [3, '3 neurons'], [12, '12 neurons']];
 const GRID = 61;
 
-function netDiagram(k) {
-  const svg = s('svg', { viewBox: '0 0 220 120', role: 'img', 'aria-label': k ? `A network: one input, ${k} hidden neurons, one output` : 'One neuron: one input and one output' });
+function netDiagram(k, p) {
+  const svg = s('svg', { viewBox: '0 0 220 120', role: 'img', 'aria-label': k ? `A network: one input, ${k} hidden neurons, one output. Line thickness is weight size.` : 'One neuron: one input and one output. Line thickness is weight size.' });
   const ys = Array.from({ length: k }, (_, j) => (k === 1 ? 60 : 12 + (96 * j) / (k - 1)));
-  if (!k) svg.append(s('line', { x1: 36, y1: 60, x2: 184, y2: 60, class: 'dg-line' }));
-  ys.forEach((y) => { svg.append(s('line', { x1: 30, y1: 60, x2: 110, y2: y, class: 'dg-line thin' })); svg.append(s('line', { x1: 110, y1: y, x2: 190, y2: 60, class: 'dg-line thin' })); });
+  // Line thickness follows the weight, so training visibly changes the network.
+  const wd = (v) => Math.min(4.5, 0.4 + Math.abs(v || 0) * 1.6);
+  if (!k) svg.append(s('line', { x1: 36, y1: 60, x2: 184, y2: 60, class: 'dg-line', 'stroke-width': wd(p && p.v[0]) }));
+  ys.forEach((y, j) => {
+    svg.append(s('line', { x1: 30, y1: 60, x2: 110, y2: y, class: 'dg-line thin', 'stroke-width': wd(p && p.w[j] * 0.6) }));
+    svg.append(s('line', { x1: 110, y1: y, x2: 190, y2: 60, class: 'dg-line thin', 'stroke-width': wd(p && p.v[j]) }));
+  });
   svg.append(s('circle', { cx: 24, cy: 60, r: 7, class: 'dg-node' }));
   ys.forEach((y) => svg.append(s('circle', { cx: 110, cy: y, r: k > 6 ? 4.5 : 6, class: 'dg-node' })));
   svg.append(s('circle', { cx: 196, cy: 60, r: 8, class: 'dg-node on' }));
@@ -280,36 +320,42 @@ function netPanel() {
   const chart = lineChart({
     n: GRID, height: 250, yMin: 0, yMax: 1, hover: false, yFmt: (v) => String(Math.round(v * 100)),
     series: [curve(trainNet(data.train, { hidden: 0, steps: 0, at: [0] }).params)],
-    dots, ticks: [0, 15, 30, 45, 60].map((i) => ({ i, text: `${i / 60 * 100}%` })), xLabel: (i) => `${Math.round((i / (GRID - 1)) * 100)}% of stores on promotion`,
-    desc: 'A made-up pattern with noise: filled dots are the points a model learns from, hollow dots are points it never sees. The curve is the model’s fit as it trains.',
+    dots, ticks: [0, 15, 30, 45, 60].map((i) => ({ i, text: `${Math.round((i / 60) * 30)}%` })), xLabel: (i) => `${Math.round((i / (GRID - 1)) * 30)}% discount`,
+    desc: 'A made-up pattern with noise: extra volume as the discount deepens. Filled dots are the examples a model learns from, hollow dots are points it never sees. The curve is the model’s fit as it trains.',
   });
-  let k = 3, timer = null, run = 0, cancel = () => {};
+  let k = 3, timer = null, run = 0, cancel = () => {}, startErr = null;
   const stop = () => { clearInterval(timer); run++; cancel(); };
-  const readout = h('div', { class: 'stats' }), diagram = h('div', { class: 'net-diagram' }), msg = h('div'), optBox = h('div');
+  const readout = h('div', { class: 'stats' }), diagram = h('div', { class: 'net-diagram' }), msg = h('div'), optBox = h('div'), cmp = h('div');
   const show = (p) => {
     chart.update({ series: [curve(p)] });
     mount(readout,
-      stat('Error on points it learned from', rmse(p, data.train).toFixed(1), 'typical miss, in points', 'ai'),
-      stat('Error on points it never saw', rmse(p, data.test).toFixed(1), 'typical miss, in points'));
+      stat('Error on what it learned from', rmse(p, data.train).toFixed(1), 'training data, typical miss in points', 'ai'),
+      stat('Error on what it never saw', rmse(p, data.test).toFixed(1), 'test data, typical miss in points'));
+    mount(diagram, netDiagram(k, p), h('p', { class: 'micro' }, 'Line thickness is weight size. Training changes the weights.'));
   };
+  const paintCmp = () => mount(cmp, h('table', { class: 'tbl cmp' },
+    h('thead', null, h('tr', null, h('th', null, 'Model'), h('th', { class: 'num r' }, 'Training error'), h('th', { class: 'num r' }, 'Test error'))),
+    h('tbody', null, NET_OPTS.map(([v, label]) => h('tr', { class: v === k ? 'sel' : '' }, h('td', null, label), h('td', { class: 'num r' }, finals[v].train.toFixed(1)), h('td', { class: 'num r' }, finals[v].test.toFixed(1)))))));
   const say = () => {
     const f = finals[k];
+    const calm = f.test < f.train ? ' A model does not always score worse on points it has not seen: held-out points can happen to be easier. What matters is how the two errors move as the model gets more flexible.' : '';
     const text = k === 0
-      ? `A single neuron can only draw a straight line, so it misses the bend: ${f.test.toFixed(1)} on points it never saw.`
+      ? `A single neuron can only draw a straight line, so it misses the bend: ${f.test.toFixed(1)} on points it never saw.${calm}`
       : k === 3
-        ? `Three neurons can bend to follow the pattern: ${f.test.toFixed(1)} on points it never saw, against ${finals[0].test.toFixed(1)} for a line.`
+        ? `Three neurons can bend to follow the pattern: ${f.test.toFixed(1)} on points it never saw, against ${finals[0].test.toFixed(1)} for a line.${calm}`
         : finals[12].test > finals[3].test
-          ? `Twelve neurons fit the points it learned from better (${f.train.toFixed(1)}) but do worse on new ones (${f.test.toFixed(1)}, against ${finals[3].test.toFixed(1)} for three). It is memorizing noise. More is not better.`
-          : `Twelve neurons do about as well as three on points it never saw (${f.test.toFixed(1)}). More was not needed.`;
-    mount(msg, note(k === 12 && finals[12].test > finals[3].test ? 'Too many' : 'What happened', text));
+          ? `Twelve neurons fit the examples it learned from better (${f.train.toFixed(1)}) but do worse on new ones (${f.test.toFixed(1)}, against ${finals[3].test.toFixed(1)} for three). It has learned quirks in those examples that do not repeat.`
+          : `Twelve neurons do about as well as three on points it never saw (${f.test.toFixed(1)}). The extra flexibility was not needed.`;
+    const trend = startErr === null ? '' : ` Training error fell ${startErr > 40 ? 'from a wild random start' : `from ${startErr.toFixed(1)}`} to ${f.train.toFixed(1)}.`;
+    mount(msg, note(k === 12 && finals[12].test > finals[3].test ? 'Too flexible' : 'What happened', text + trend));
   };
   const play = () => {
     clearInterval(timer);
     const myRun = ++run;
-    mount(msg);
-    mount(diagram, netDiagram(k));
+    mount(msg); paintCmp();
     const { snaps } = trainNet(data.train, { hidden: k, steps: NET_STEPS, lr: 0.03, seed: 3, at: NET_FRAMES });
     let f = 0;
+    startErr = rmse(snaps.get(0), data.train);
     show(snaps.get(0));
     timer = setInterval(() => {
       if (!chart.isConnected || myRun !== run) { clearInterval(timer); return; }
@@ -320,17 +366,17 @@ function netPanel() {
     }, 70);
   };
   const paintOpts = () => mount(optBox, seg(NET_OPTS.map(([v, label]) => [String(v), label]), String(k), (id) => { k = +id; paintOpts(); play(); }));
-  paintOpts();
-  mount(diagram, netDiagram(k));
+  paintOpts(); paintCmp();
   show(trainNet(data.train, { hidden: k, steps: 0, lr: 0.03, seed: 3, at: [0] }).params);
   cancel = whenVisible(chart, play);
 
   const node = h('div', { class: 'stack-l' },
     chart,
-    h('p', { class: 'micro' }, 'A made-up pattern, not Ridgeline data. Filled dots: the 14 points it learns from. Hollow: points it never sees.'),
+    h('p', { class: 'micro' }, 'A made-up pattern, not Ridgeline data: extra volume as a discount deepens. Filled dots: the 14 examples it learns from (training data). Hollow: points it never sees (test data).'),
     h('div', { class: 'learn-controls' }, optBox, h('button', { class: 'btn small', type: 'button', onClick: play }, 'Replay')),
     h('div', { class: 'net-row' }, readout, diagram),
-    msg);
+    cmp, msg,
+    h('p', { class: 'small' }, 'In most random draws of this toy, three neurons beat twelve. This draw shows it clearly. Large language models use the same broad idea, learned weights in a neural network, with transformer architectures, many layers and billions of parameters.'));
   return { node, stop };
 }
 
@@ -347,13 +393,13 @@ const learn = {
         h('div', { class: 'stack' },
           ...top(3, 'sys', stage === 'neuron' ? 'Teach it to forecast.' : 'Now give it more neurons.',
             stage === 'neuron'
-              ? 'One artificial neuron: inputs times weights, added up. It starts with random weights, so its first forecasts are wild. Then it repeats one move: measure the miss, nudge the weights to shrink it.'
-              : 'Add neurons and a model can bend to fit a pattern a line cannot. A neural network is this, stacked. Language models are the same idea with billions of weights.')),
+              ? 'One artificial neuron: inputs times weights, added up. It starts with random weights, so its first forecasts are wild. Learning is one move, repeated: predict, measure the miss, adjust the weights, try again.'
+              : 'Learning is adjusting a model’s weights until its predictions become less wrong. More neurons give it more ways to bend. They do not guarantee better predictions.')),
         seg([['neuron', 'One neuron'], ['net', 'More neurons']], stage, (id) => { stage = id; paint(); }),
         panel.node);
     };
     paint();
-    return h('div', { class: 'screen stack-l' }, body, actions(ctx, { label: 'What can it actually learn?' }));
+    return h('div', { class: 'screen stack-l' }, body, actions(ctx, { label: 'Did it beat a spreadsheet?' }));
   },
 };
 
@@ -373,6 +419,7 @@ const test = {
     const from = ev.rows[0].t, n = ev.rows.length;
     const vsSimple = bootstrapReduction(ev.rows, 'simple');
     const fixed = (ev.wapeCurrent - ev.wapeSimple) / ev.wapeCurrent;
+    const shipMiss = TEST_WEEKS.reduce((a, t) => a + Math.abs(WEEKS[t].cf - WEEKS[t].ship), 0) / TEST_WEEKS.reduce((a, t) => a + WEEKS[t].ship, 0);
     const gap = ev.wapeAI - ev.wapeSimple;
     const how = Math.abs(gap) < 0.004 ? 'about the same as' : gap < 0 ? 'a little better than' : 'worse than';
     const chart = lineChart({
@@ -388,11 +435,11 @@ const test = {
           `We kept the last ${TEST_WEEKS.length} weeks hidden from the model, then asked it, today’s method and a simple forecast with no AI to predict them. This is a back-test: a replay of history.`)),
       chart,
       h('div', { class: 'stats' },
-        stat('Today’s forecast', pc(ev.wapeCurrent, 1), 'typical miss vs depletions'),
+        stat('Today’s forecast', pc(ev.wapeCurrent, 1), `typical miss vs depletions. ${pc(shipMiss, 1)} against shipments, what it forecasts`),
         stat('Simple, no AI', pc(ev.wapeSimple, 1), 'typical miss vs depletions'),
         stat('AI forecast', pc(ev.wapeAI, 1), 'typical miss vs depletions', 'ai')),
       h('p', { class: 'verdict' }, `Most of the gain is not AI. Forecasting depletions instead of shipments, with a trend measured from recent weeks, cuts the miss against depletions by ${Math.round(fixed * 100)}%. The AI is ${how} that.`),
-      note('Where it needs a person', `It cannot see a rival launching or a chain resetting its range, and accuracy on past weeks is not accuracy on new ones: the 12-neuron network missed by ${HISTORY().net.train.toFixed(1)} on points it learned from and ${HISTORY().net.test.toFixed(1)} on new ones. That judgment stays with people.`),
+      note('Where it needs a person', `The forecasting neuron did not overfit: it missed by ${pc(HISTORY().trainWape, 1)} on weeks it learned from and ${pc(HISTORY().examWape, 1)} on new ones. But it cannot see a rival launching or a chain resetting its range. A person has to, and has to be free to override it.`),
       note('How sure?', `Against the simple method the AI ${rangeText(vsSimple)}. When a range crosses zero, the data cannot tell them apart. A replay also flatters: the answers are known and nothing is at stake.`),
       actions(ctx, { label: 'Make it stick' }));
   },
@@ -445,6 +492,63 @@ const stick = {
             stat('Review time today', hrs(reviewHours('review')), 'per planner, a week'),
             stat('With this design', hrs(reviewHours(mode.id)), 'per planner, a week', 'ai')),
           h('p', { class: 'small' }, mode.note, ' In every option the planner stays accountable.')),
+        actions(ctx, { label: 'Is it safe to try?' }));
+      settle(root);
+    };
+    paint();
+    return root;
+  },
+};
+
+// ---------------------------------------------------------------- 6. Is it safe to try?
+const ANNOUNCE = [
+  { id: 'now', text: '“Everyone needs to start using AI immediately.”', hear: 'I have to prove I am using it. Admitting I do not understand it will look like incompetence.', safe: false },
+  { id: 'track', text: '“Use AI wherever possible. We will track usage.”', hear: 'I am measured on how much I use it, not on whether it helps.', safe: false },
+  { id: 'experiment', text: '“Experiment with AI. Tell us where it helps, where it does not, and where you are not comfortable. We will redesign the work, not just add to it.”', hear: 'It is fine to be a beginner. My experience is part of the experiment.', safe: true },
+];
+export const SAFE_QS = [
+  ['allowed', 'What am I allowed to put into AI?'],
+  ['check', 'What am I responsible for checking?'],
+  ['not', 'When should I not use AI?'],
+  ['mistake', 'What happens if I make a mistake?'],
+  ['workload', 'Will the time AI frees become extra workload?'],
+  ['where', 'Where do I go when I do not know what to do?'],
+];
+const ADOPT_LOOPS = [
+  { id: 'safe', name: 'Safe to try', path: ['Try', 'Fail', 'Speak up', 'Learn', 'Improve', 'Try again'], line: 'Leadership sees what is really happening.' },
+  { id: 'unsafe', name: 'Not safe to try', path: ['Try', 'Fail', 'Hide it', 'Leadership never knows', 'Repeat'], line: 'Leadership thinks AI is working.' },
+];
+
+const safe = {
+  id: 'safe', title: 'Safe to try',
+  render(ctx) {
+    const { state, save } = ctx;
+    const root = h('div', { class: 'screen stack-l' });
+    const paint = () => {
+      if (!ANNOUNCE.some((a) => a.id === state.announce)) state.announce = null;
+      state.safeAns = (Array.isArray(state.safeAns) ? state.safeAns : []).filter((id) => SAFE_QS.some(([k]) => k === id));
+      const pick = ANNOUNCE.find((a) => a.id === state.announce);
+      const yes = state.safeAns.length;
+      mount(root,
+        h('div', { class: 'stack' }, ...top(6, 'ppl', 'Is it safe to try?',
+          'Telling everyone to use AI can mean very different things to the people hearing it. What they hear decides whether they tell you what is really happening.')),
+        h('div', { class: 'stack-s' },
+          h('h3', { class: 'h3' }, 'You are the CEO. Which announcement do you make?'),
+          choices({ name: 'Announcement', items: ANNOUNCE.map((a) => ({ id: a.id, title: a.text })), value: state.announce, onPick: (id) => { state.announce = id; save(); paint(); } }),
+          pick ? h('p', { class: 'prose reveal' }, h('strong', null, 'What an employee hears: '), pick.hear) : null),
+        h('div', { class: 'loops pair' }, ADOPT_LOOPS.map((l) => h('div', { class: `loop ${l.id === 'safe' ? 'learning' : 'activity'}${pick && (pick.safe === (l.id === 'safe')) ? ' on' : ''}` },
+          h('b', null, l.name),
+          h('div', { class: 'loop-path' }, l.path.flatMap((p, i) => [h('span', null, p), i < l.path.length - 1 ? h('i', { 'aria-hidden': 'true' }, '→') : null])),
+          h('p', { class: 'small' }, l.line)))),
+        h('div', { class: 'stack-s' },
+          h('h3', { class: 'h3' }, 'Before you announce: can your people answer these today?'),
+          h('div', { class: 'qchecks' }, SAFE_QS.map(([id, q]) => {
+            const on = state.safeAns.includes(id);
+            return h('button', { class: 'qcheck', type: 'button', 'aria-pressed': String(on), onClick: () => { state.safeAns = on ? state.safeAns.filter((x) => x !== id) : [...state.safeAns, id]; save(); paint(); } }, h('i', { 'aria-hidden': 'true' }), q);
+          })),
+          h('p', { class: 'small' }, yes === SAFE_QS.length
+            ? 'All six answered. People can say “I do not know” and “I do not trust this output” without penalty.'
+            : `${yes} of ${SAFE_QS.length} answered. Each gap is a reason to wait. Telling people to use AI before answering them creates uncertainty, not adoption.`)),
         actions(ctx, { label: 'Design the pilot' }));
       settle(root);
     };
@@ -453,7 +557,7 @@ const stick = {
   },
 };
 
-// ---------------------------------------------------------------- 6. The pilot
+// ---------------------------------------------------------------- 7. The pilot
 const TARGETS = [0.05, 0.1, 0.2];
 const WEEKS_OPT = [8, 13, 26];
 const SCOPE_SHORT = { lean: 'one distributor (12 SKU groups)', full: 'all three distributors (12 SKU groups each)' };
@@ -478,21 +582,28 @@ const pilot = {
       const g = GAPS.find((x) => x.id === state.gap);
       const mode = REVIEW.find((r) => r.id === p.human) || REVIEW[1];
       const share = typeof state.autoShare === 'number' ? state.autoShare : 0.6, dest = DEST[state.destination] ? state.destination : 'judgment';
+      const answered = Array.isArray(state.safeAns) ? state.safeAns : [], open = SAFE_QS.filter(([k]) => !answered.includes(k));
+      const maxed = p.weeks === 26 && p.scope === 'full';
       const rows = [
         ['Do first, no AI', `Get weekly distributor inventory. Forecast depletions, then set shipments to that plus the inventory change you want. In the back-test the miss against depletions fell from ${pc(ev.wapeCurrent, 1)} to ${pc(ev.wapeSimple, 1)}, worth ${money(noAI.lo)} to ${money(noAI.hi)} a year here.`],
-        ['Redeploy the time', `${hrs(freedHours(share))} a week per planner, moved to ${DEST[dest].label.toLowerCase()}. It counts as value only once it is redeployed.`],
+        ['Redeploy the time', DEST[dest].kind === 'none' ? 'Decide first where the freed hours go. Left alone they refill the calendar, and the value is zero.' : `${hrs(netHours(share))} a week per planner, after new checking work, moved to ${DEST[dest].label.toLowerCase()}. Capacity is not savings: it is value only once redeployed.`],
         ['The test', `The AI cuts the typical miss in depletions by at least ${p.target * 100}% against the simple forecast, over ${p.weeks} weeks across ${SCOPE_SHORT[p.scope]}. A win beats the better baseline by ${winText(sim.passAt)}, half the target, for luck. Scale if it wins, extend 13 weeks if close, stop if not. Written before it starts.`],
         ['Review', `${mode.label}: ${hrs(reviewHours(mode.id))} a week per planner, down from ${hrs(reviewHours('review'))}. The planner stays accountable.`],
-        ['Close the gap first', g ? g.prove : 'Pick your gap on the last screen to add it here.'],
+        ['Close the gap first', g ? g.prove : 'Pick your gap on the Make it stick screen to add it here.'],
+        ['Make it safe to try', open.length ? `Answer first: ${open.slice(0, 3).map(([, q]) => q.replace(/\?$/, '').toLowerCase()).join('; ')}${open.length > 3 ? ` and ${open.length - 3} more` : ''}. Announce it as an experiment, not a mandate.` : 'The six questions are answered. Announce it as an experiment, not a mandate.'],
         ['Owner', 'Head of demand planning owns the scoreboard. VP of Supply Chain decides scale or stop.'],
       ];
       const text = `AI DECISION LAB: PILOT BRIEF\nRidgeline Bourbon, Texas (fictional)\n\n${rows.map(([t, x]) => `${t.toUpperCase()}\n${x}`).join('\n\n')}\n`;
       const copy = h('button', { class: 'btn ghost small', type: 'button', 'aria-live': 'polite', onClick: async () => {
-        try { await navigator.clipboard.writeText(text); copy.textContent = 'Copied'; } catch (e) { copy.textContent = 'Copy failed'; }
+        let ok = false;
+        try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {
+          try { const ta = h('textarea', { style: { position: 'fixed', opacity: '0' } }); ta.value = text; document.body.append(ta); ta.select(); ok = document.execCommand('copy'); ta.remove(); } catch (e2) { ok = false; }
+        }
+        copy.textContent = ok ? 'Copied' : 'Select the brief and copy';
         setTimeout(() => { copy.textContent = 'Copy as text'; }, 2000);
       } }, 'Copy as text');
       mount(root,
-        h('div', { class: 'stack' }, ...top(6, 'biz', 'Turn the idea into an experiment.', 'Decide what you will test, and check that a test this size could tell.')),
+        h('div', { class: 'stack' }, ...top(7, 'biz', 'Turn the idea into an experiment.', 'Decide what you will test, and check that a test this size could tell.')),
         h('div', { class: 'pilot-controls' },
           h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'The AI will cut the miss by at least'), seg(TARGETS.map((t) => [String(t), `${t * 100}%`]), String(p.target), (v) => { p.target = +v; save(); paint(); })),
           h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'For'), seg(WEEKS_OPT.map((w) => [String(w), `${w} weeks`]), String(p.weeks), (v) => { p.weeks = +v; save(); paint(); })),
@@ -500,8 +611,8 @@ const pilot = {
         h('div', { class: 'finding' },
           h('p', { class: 'says' }, canTell
             ? `This design can find out. If the gain is real it shows a win ${Math.round(stress.power * 100)}% of the time, and if the AI adds nothing it shows a false win only ${Math.round(stress.falseAlarm * 100)}% of the time.`
-            : `This design cannot reliably find out. If the gain is real it shows a win ${Math.round(stress.power * 100)}% of the time, and if the AI adds nothing it still shows one ${Math.round(stress.falseAlarm * 100)}% of the time. Try more weeks or all three distributors.`),
-          h('p', { class: 'small' }, `Assumes only a third of your series are independent, since real ones share a model and a calendar.${above ? ` A ${p.target * 100}% target is above the best case the replay allowed (${pc(Math.max(0, vsSimple.hi))}), so read this as the chance of a win only if that gain is real.` : ''}`)),
+            : `This design cannot reliably find out. If the gain is real it shows a win ${Math.round(stress.power * 100)}% of the time, and if the AI adds nothing it still shows one ${Math.round(stress.falseAlarm * 100)}% of the time. ${maxed ? 'Even the largest design here cannot settle it at this target: aim for a bigger effect, or accept the pilot will not decide it.' : 'Try more weeks or all three distributors.'}`),
+          h('p', { class: 'small' }, `Assumes only a third of your series are independent, since real ones share a model and a calendar.${above ? ` A ${p.target * 100}% target is above the best case the replay allowed (${pc(Math.max(0, vsSimple.hi), 1)}), so read this as the chance of a win only if that gain is real.` : ''}`)),
         h('article', { class: 'brief' },
           h('div', { class: 'brief-head' }, h('div', null, h('div', { class: 'micro' }, 'Pilot brief'), h('h2', { class: 'h2' }, 'AI-assisted weekly depletions forecast')), copy),
           h('dl', null, rows.flatMap(([t, x]) => [h('dt', null, t), h('dd', null, x)]))),
@@ -515,4 +626,4 @@ const pilot = {
   },
 };
 
-export const screens = [loops, time, learn, test, stick, pilot];
+export const screens = [loops, time, learn, test, stick, safe, pilot];

@@ -1,6 +1,6 @@
 # AI Decision Lab
 
-An interactive lab for nontechnical CPG leaders, built on one foundation: running a business mixes work humans do better with work computers do better, and time and focus are what it runs short of. AI pays off when it moves hours from routine work to judgment (and only if the hours are redeployed), and it sticks when strategy, systems and people line up. Six screens, about ten minutes: which loop (activity vs learning) and who does each job better; where the time goes; how a neuron and a small neural network learn; the honest test against a no-AI baseline; the three lenses and the gap between them, with review and approvals; the pilot. **AI is not the product. Better decisions are.**
+An interactive lab for nontechnical CPG leaders, built on one foundation: running a business mixes work humans do better with work computers do better, and time and focus are what it runs short of. AI pays off when it moves hours from routine work to judgment (and only if the hours are redeployed), and it sticks when strategy, systems and people line up. Seven screens, about twelve minutes: which loop (activity vs learning) and what happens if each job goes wrong (capability x uncertainty x consequence); where the time goes; how a neuron and a small neural network learn (training vs test error); the honest test against a no-AI baseline; the three lenses and the gap between them, with review and approvals; psychological safety (is it safe to try?); the pilot. **AI is not the product. Better decisions are.**
 
 - Live: https://ai-decision-lab-production-56eb.up.railway.app (a second domain, `ai-decision-lab-production.up.railway.app`, also serves it)
 - Repo: github.com/matthewschmidt1-lgtm/ai-decision-lab (public, branch `main`)
@@ -24,13 +24,15 @@ Sibling of Decision OS, Friction and Matthew's site. It carries their philosophy
   - **Score replays against depletions with no stockouts** (`want`), not a smooth hidden series, and tune every forecast's cushion the same way.
   - **Uncertainty on every headline**: block-bootstrap 90% ranges, rolling-origin folds, out-of-sample forecast bands. A range that crosses zero is reported as "cannot tell".
   - **Computed text, not canned text.** Any sentence that interprets a number (competitor shift, overconfidence, learning-rate limit, "AI vs simple") must be generated from the numbers, including the case where it comes out the other way.
+  - **Numbers on screen must reconcile.** The time page shows the slider setting, the share of routine hours, gross and net hours, yearly hours and dollars, and its assumptions (46 working weeks, 6 planners, $70 an hour); a test checks every figure against the others. Automation creates new checking work, the result is a range, and capacity is not savings or business value.
+  - **Job sorting teaches failure modes, not a score.** Each job shows what happens if a human, a computer, or both get it wrong, plus a usual design; context can change the answer, so there is no "matched N of 5".
   - **Time saved is not value.** The time screen (`js/time.js`) counts planner hours as value only when they are redeployed; "nowhere in particular" is worth $0 because the calendar refills. The week's hours are an illustrative assumption, labelled as one, and a spreadsheet frees some of the same hours, so the pilot compares AI with it. Sorting jobs between humans and computers has a defensible answer for each job and all three answers (human, computer, together) must appear.
   - **Label oracles.** The decomposition and the "learned vs true" table use hidden generator truth; the screens say so.
   - **Bootstraps use circular blocks** (block starts uniform over all weeks), otherwise edge weeks are under-sampled and false alarms understated. `tests/run.html` asserts the simulated worlds are unbiased.
   - **The pilot simulation is null-aware**: it reports power and the false-alarm rate, calls a win halfway between nothing and the target, and its power depends on how many independent series the pilot covers (the headline uses a stress case where only a third of them average out noise). A target above the best case the back-test allowed is flagged.
-- **No scores, badges, points, leaderboards, accounts, backend.** Choices persist in `localStorage` (`adlab.v5`; bump the key when the state shape changes) so a refresh keeps your place. Nothing leaves the device.
+- **No scores, badges, points, leaderboards, accounts, backend.** Choices persist in `localStorage` (`adlab.v6`; bump the key when the state shape changes) so a refresh keeps your place. Nothing leaves the device.
 - **Credibility over promotion.** The lab must be able to conclude "AI isn't the right solution here": screen 4 says most of the gain is not AI, and the pilot brief opens with what to do first without AI.
-- **Keep it short.** The lab was cut from 21 screens to 5 and grew back to 6 when time and focus and the lens gap earned their own screens (still about 85% fewer words than the original) because testers found it too long. One idea and one thing to do per screen; a test (`tests/run.html`) fails if the lab grows past 6 screens, 320 words on any screen, or 1,300 in total. Cut before adding, and do not expand the MVP (one scenario, open the hood, three lenses, pilot designer) until this loop is excellent. Depth over breadth.
+- **Keep it short.** The lab was cut from 21 screens to 5 and grew back to 7 as time and focus, the lens gap and psychological safety earned their own screens (still about 80% fewer words than the original) because testers found it too long. One idea and one thing to do per screen; a test (`tests/run.html`) fails if the lab grows past 7 screens, 320 words on any screen, or 1,700 in total. Cut before adding, and do not expand the MVP (one scenario, open the hood, three lenses, pilot designer) until this loop is excellent. Depth over breadth.
 
 ## Design language
 
@@ -73,7 +75,7 @@ js/forecast.js         features, gradient descent, exact solve, stability limit,
 js/value.js            replay, cost curves, calculator, sensitivity, break-even, pilot power simulation
 js/beliefs.js          computed evidence from the lab's own models (accuracy on history vs new data, bigger vs better, more examples, proxy data); screen 4 quotes it
 js/time.js             one planner's 40-hour week, what the computer takes over, where freed hours go (no value unless redeployed), review hours by design
-js/screens/lab.js      the six screens: loops and who does it better, time and focus, how it learns (neuron then network), honest test, make it stick (lenses, gap, review), pilot
+js/screens/lab.js      the seven screens: loops and failure modes, time and focus, how it learns (neuron then network), honest test, make it stick (lenses, gap, review), safe to try, pilot
 js/nn.js               a tiny neural network (tanh hidden layer, Adam), seeded; the toy bend data; used by screen 3
 tests/run.html         browser test runner
 ```

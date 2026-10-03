@@ -119,3 +119,17 @@ body { background: #fff; }
 .stick-top { grid-template-columns: 1fr; }
 }
 
+.loop-path.flow { margin-top: 2px; }
+.fail { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: var(--fs-small); color: var(--ink-2); }
+.fail li { padding: 6px 10px; border-radius: var(--r-md); }
+.fail li.mine { background: var(--accent-soft); color: var(--ink); }
+.fail b { color: var(--ink); }
+.loop.on { box-shadow: inset 0 0 0 2px var(--accent); }
+.loop.activity.on { box-shadow: inset 0 0 0 2px var(--bad); }
+.qchecks { display: grid; gap: 8px; }
+.qcheck { display: flex; align-items: center; gap: 12px; text-align: left; background: var(--paper); border: 0; border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--line); padding: 12px 14px; font: 500 0.95rem var(--font); color: var(--ink); cursor: pointer; }
+.qcheck i { flex: none; width: 18px; height: 18px; border-radius: 5px; box-shadow: inset 0 0 0 1.5px var(--line-2); background: var(--bg); }
+.qcheck[aria-pressed="true"] { box-shadow: inset 0 0 0 1.5px var(--accent); background: var(--accent-soft); }
+.qcheck[aria-pressed="true"] i { background: var(--accent); box-shadow: none; }
+.qcheck[aria-pressed="true"] i::after { content: "✓"; color: #fff; font-size: 13px; line-height: 18px; display: block; text-align: center; }
+.loops.pair .loop:not(.on) { box-shadow: inset 0 0 0 1px var(--line); }

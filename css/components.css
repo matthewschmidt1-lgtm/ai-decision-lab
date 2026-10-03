@@ -273,3 +273,4 @@ h1:focus, h1:focus-visible { outline: none; }
 .chip.who-computer::before { background: var(--sys); }
 .chip.who-together::before { background: var(--accent); }
 
+.tbl.cmp tr.sel td { background: var(--accent-soft); font-weight: 600; }

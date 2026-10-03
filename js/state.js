@@ -3,7 +3,7 @@
 
 import { DEFAULTS } from './value.js';
 
-const KEY = 'adlab.v5';
+const KEY = 'adlab.v6';
 
 const fresh = () => ({
   loop: null,           // which loop they think their organization is in
@@ -12,6 +12,8 @@ const fresh = () => ({
   autoShare: 0.6,       // how much of the routine work the computer takes over, on the time screen
   destination: 'judgment',   // where the freed hours go
   gap: null,            // which gap between the lenses they would close first
+  announce: null,       // the AI announcement they would make as CEO
+  safeAns: [],          // which of the six pre-announcement questions their people can answer
   value: { ...DEFAULTS },
   pilot: { target: 0.1, weeks: 13, scope: 'lean', human: 'band', primary: 'both', guard: ['excess', 'override'], rule: 'scale' },
 });
