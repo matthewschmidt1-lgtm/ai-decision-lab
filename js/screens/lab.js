@@ -120,8 +120,16 @@ const assume = {
     const { state, save } = ctx;
     const BELIEFS = beliefs();
     const root = h('div', { class: 'screen stack-l' });
+    // Answers saved by an older version of the lab can name claims that no longer exist. Keep only the valid ones.
+    const clean = () => {
+      const bets = {};
+      BELIEFS.forEach((b) => { if (VERDICT[state.bets && state.bets[b.id]]) bets[b.id] = state.bets[b.id]; });
+      state.bets = bets;
+      if (state.checked && !BELIEFS.every((b) => bets[b.id])) state.checked = false;
+    };
     const paint = () => {
-      const bets = state.bets || (state.bets = {});
+      clean();
+      const bets = state.bets;
       const done = BELIEFS.every((b) => bets[b.id]);
       const hits = BELIEFS.filter((b) => bets[b.id] === b.test.verdict).length;
       const intro = h('div', { class: 'stack' },

@@ -201,6 +201,18 @@ t('Twelve neurons do worse on unseen points than three, in most random draws (me
   return eq(worse > draws / 2, `only ${worse} of ${draws}`);
 });
 
+section('Saved choices from an older version must never break a page');
+t('Stale answers and a stale "checked" flag are cleaned up instead of crashing the claims page', () => {
+  const saved = JSON.stringify(state), noop = () => {};
+  state.bets = { forecast: 'holds', distributors: 'conditions', promo: 'holds' }; state.checked = true; state.decision = 'nonsense'; state.sysWorry = 'gone'; state.pplWorry = 'gone';
+  let msg = true;
+  try { for (const sc of screens) sc.render({ state, save: noop, next: noop, back: noop, go: noop, hasBack: true, rerender: noop }); }
+  catch (e) { msg = `${e.message}`; }
+  const healed = state.checked === false;
+  Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, JSON.parse(saved));
+  return eq(msg === true && healed, msg === true ? 'stale checked flag was kept' : msg);
+});
+
 section('Vocabulary: shipments, depletions and sell-through are different steps');
 t('No screen uses shopper wording for depletions, or borrows sell-in, sell-out or pull-through', () => {
   const saved = JSON.stringify(state), noop = () => {};

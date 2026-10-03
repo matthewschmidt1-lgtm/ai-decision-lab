@@ -30,7 +30,17 @@ function render() {
     hasBack: i > 0,
     rerender: render,
   };
-  const screen = def.render(ctx);
+  let screen;
+  try {
+    screen = def.render(ctx);
+  } catch (err) {
+    // Never leave a learner stuck on a dead button: say so, and offer a clean start.
+    console.error(err);
+    screen = h('div', { class: 'screen stack-l' },
+      h('div', { class: 'stack' }, h('h1', { class: 'h1 wide' }, 'Something went wrong.'),
+        h('p', { class: 'lede' }, 'Choices saved from an older version of the lab may be the cause. Clearing them starts you fresh.')),
+      h('div', null, h('button', { class: 'btn', type: 'button', onClick: () => { reset(); go(SCREENS[0].id); render(); } }, 'Clear my choices and start again')));
+  }
   const stage = h('div', { class: 'stage' }, screen);
   mount(main, stage);
   const focusTarget = screen.querySelector('h1');

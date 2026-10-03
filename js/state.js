@@ -3,7 +3,7 @@
 
 import { DEFAULTS } from './value.js';
 
-const KEY = 'adlab.v3';
+const KEY = 'adlab.v4';
 
 const fresh = () => ({
   decision: null,       // the decision they would point AI at on the business map
