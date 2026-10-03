@@ -1,16 +1,17 @@
 # AI Decision Lab
 
-An interactive lab for CPG leaders. See what really happened to a brand's shipments, teach a neuron to forecast, learn what neural nets are, and design the pilot that would show whether AI helps.
+An interactive lab for CPG leaders, built on one foundation: running a business is a mix of work that humans do better and work that computers do better, and time and focus are what it runs short of. AI pays off when it moves hours from routine work to judgment, and it only sticks when strategy, systems and people line up.
 
 > AI is not the product. Better decisions are.
 
-## The experience (five screens, about eight minutes)
+## The experience (six screens, about ten minutes)
 
-1. **How the business works.** The chain from supplier to distributor to accounts to consumers: what flows each way, what each link can see, and where information gets distorted. Then pick which decision to point AI at, and see whether AI, a simple rule or neither is the right tool.
-2. **How it learns.** A real training run in your browser: one neuron on the forecast data (random start, measure the miss, nudge the weights; try too slow and too fast), then a small neural network that bends to fit a pattern a line cannot, and memorizes noise when it has too many neurons.
-3. **What it can learn.** Five claims people make about AI. Call each one, then check it against the models you just trained.
-4. **The honest test.** Today's forecast against a simple no-AI forecast and the AI, on weeks the model never saw.
-5. **The pilot.** The three questions (Business, System, People), then a target, length and scope, a check that a test that size could tell, and a copyable brief.
+1. **Which loop are you in?** The activity loop (data, deck, meeting, deck, meeting) against the learning loop (signal, understanding, decision, action, learning). Then sort five real jobs into human, computer or together.
+2. **Where does the time go?** One planner's week (an illustrative assumption). Slide how much routine work the computer takes over and choose where the freed hours go. Hours that go nowhere in particular are worth nothing.
+3. **How it learns.** A real training run in your browser: one neuron on the forecast data (try too slow and too fast), then a small neural network that bends to fit a pattern a line cannot, and memorizes noise when it has too many neurons.
+4. **The honest test.** Today's forecast against a simple no-AI forecast and the AI, on weeks the model never saw, and what still needs a person.
+5. **Make it stick.** The three lenses (Business creates value, System creates leverage, People creates capability), where they overlap (scale, capability, leadership, the multiplier), and the gap between them. Then design the review and approvals.
+6. **The pilot.** A target, length and scope, a check that a test that size could tell, and a copyable brief.
 
 Shipments are product the brand ships to distributors. Depletions are what distributors sell to on- and off-premise accounts. Sell-through is consumers buying at retail; the lab has no data for it.
 

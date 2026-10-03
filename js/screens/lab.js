@@ -1,30 +1,34 @@
-// The lab, in five screens. One idea and one thing to do on each.
-//   1 How the business works (and where AI fits)   2 How it learns (one neuron, then more)
-//   3 What it can learn (claims about AI, tested)   4 The honest test   5 The pilot (with the three questions)
-// Everything is computed live from the data. The models on screen 3 are trained in the browser.
+// The lab, in six screens. One idea and one thing to do on each.
+//   1 Which loop are you in? (and who does each job better)   2 Where does the time go?
+//   3 How it learns (one neuron, then more)   4 The honest test
+//   5 Make it stick (the three lenses and the gap between them)   6 The pilot
+// Everything is computed live. The models on screen 3 are trained in the browser.
 
-import { h, s, bars, stat, note, mount, int, money, signed, seg, choices, eyebrow } from '../ui.js';
+import { h, s, bars, stat, note, mount, int, money, slider, seg, choices, eyebrow } from '../ui.js';
 import { lineChart } from '../charts.js';
-import { WEEKS, decompose, weekLabel, noiseFloor, COMPETITOR_WEEK, CHAIN_CUT_WEEK } from '../data.js';
+import { WEEKS, weekLabel, noiseFloor, COMPETITOR_WEEK, CHAIN_CUT_WEEK } from '../data.js';
 import { ALL_GROUPS, DEFAULT_CAUTION, TEST_WEEKS, trainModel, evaluate, bootstrapReduction, dataset, gradientDescent, solveExact,
          maxStableRate, simpleForecast } from '../forecast.js';
-import { SCOPES, pairGain, valueRange, breakEvenMultiple, simulatePilot } from '../value.js';
+import { SCOPES, pairGain, simulatePilot } from '../value.js';
 import { toyData, trainNet, predict, mse } from '../nn.js';
-import { VERDICTS, VERDICT, testBeliefs } from '../beliefs.js';
+import { testBeliefs } from '../beliefs.js';
+import { WEEK, DESTINATIONS, DEST, WEEK_HOURS, TEAM, freedHours, weekAfter, annual, REVIEW, reviewHours } from '../time.js';
 import { actions, ticksFor, rangeText } from './common.js';
 
-export const STEP_NAMES = ['The business', 'How it learns', 'What it can learn', 'The honest test', 'The pilot'];
+export const STEP_NAMES = ['The loops', 'Time and focus', 'How it learns', 'The honest test', 'Make it stick', 'The pilot'];
 const TOTAL = STEP_NAMES.length;
 
-const D = decompose();
 const pc = (v, d = 0) => `${(v * 100).toFixed(d)}%`;
-const pcs = (v, d = 1) => `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(d)}%`;
+const hrs = (v) => `${v.toFixed(1).replace('.0', '')} h`;
 
 let _model = null, _eval = null;
 const EVAL = () => (_eval ||= evaluate(MODEL()));
 const MODEL = () => (_model ||= trainModel(ALL_GROUPS, { l2: DEFAULT_CAUTION }));
 
 // On a repaint (picking an answer) the page should not re-run its entrance animation.
+let _hist = null;
+const HISTORY = () => (_hist ||= testBeliefs().history);
+
 const settle = (root) => { if (root._seen) root.classList.add('static'); root._seen = true; };
 
 // The top of every screen: where you are, and the one question.
@@ -34,63 +38,60 @@ const top = (n, lens, title, lede) => [
   lede ? h('p', { class: 'lede' }, lede) : null,
 ];
 
-// ---------------------------------------------------------------- 1. How the business works
-const NODES = [
-  { id: 'supplier', who: 'Ridgeline Bourbon', what: 'the supplier', sees: 'Sees only its shipments.' },
-  { id: 'dist', who: 'Distributors', what: 'three Texas wholesalers', sees: 'See shipments in, depletions out, and their own inventory.' },
-  { id: 'acct', who: 'Accounts', what: 'bars, restaurants and stores', sees: 'See what consumers buy from them.' },
-  { id: 'cons', who: 'Consumers', what: 'the people who drink it', sees: 'Not measured in this lab.' },
+// ---------------------------------------------------------------- 1. Which loop are you in?
+const LOOPS = [
+  { id: 'activity', name: 'The activity loop', path: ['Data', 'Deck', 'Meeting', 'Deck', 'Meeting'], line: 'A lot of activity, not much progress.' },
+  { id: 'learning', name: 'The learning loop', path: ['Signal', 'Understanding', 'Decision', 'Action', 'Learning'], line: 'Every decision makes the next one better.' },
 ];
-const FLOWS = [
-  { id: 'ship', term: 'Shipments', def: 'supplier to distributor' },
-  { id: 'dep', term: 'Depletions', def: 'distributor to accounts' },
-  { id: 'sell', term: 'Sell-through', def: 'consumers buying from accounts' },
+export const WHO = [['human', 'Human'], ['computer', 'Computer'], ['together', 'Together']];
+const WHO_LABEL = Object.fromEntries(WHO);
+export const TASKS = [
+  { id: 'pattern', text: 'Spot a weekly pattern in three years of orders', best: 'computer', why: 'Pattern-finding across years of numbers is tireless work for a computer.' },
+  { id: 'chain', text: 'Decide whether to give Chain X the price it wants', best: 'human', why: 'A relationship, a judgment and an accountable owner.' },
+  { id: 'reconcile', text: 'Reconcile two distributors’ spreadsheets', best: 'computer', why: 'Fast, exact matching, and a poor use of a planner’s attention.' },
+  { id: 'draft', text: 'Draft next week’s forecast, then check it against what you know', best: 'together', why: 'The computer drafts in seconds. A person catches what the numbers cannot see.' },
+  { id: 'rival', text: 'Notice that a rival’s launch changes what history says', best: 'human', why: 'Context from outside the data. A model only knows what it was shown.' },
 ];
-const DECISIONS = [
-  { id: 'forecast', lit: 'ship', title: 'How many cases to ship each week', sub: 'Supplier to distributor', tone: 'strong', label: 'Good fit',
-    why: 'A prediction made every week, with years of history and a way to score it. This is where AI can earn its place.' },
-  { id: 'alert', lit: 'dist', title: 'When to warn a distributor its inventory is off', sub: 'At the distributor', tone: 'maybe', label: 'A rule is enough',
-    why: 'A threshold on weekly inventory does the job. Use a rule, and save learning for where it adds something.' },
-  { id: 'negotiate', lit: 'acct', title: 'How to answer Chain X’s demands', sub: 'At an account', tone: 'no', label: 'Not an AI problem',
-    why: 'A one-off judgment about a relationship. AI can inform it, but there are no repeated examples to learn from.' },
-];
+const TONE = { human: 'who-human', computer: 'who-computer', together: 'who-together' };
 
-function bizMap(lit) {
-  const row = [];
-  NODES.forEach((n, i) => {
-    row.push(h('div', { class: `biz-node${lit === n.id ? ' lit' : ''}` }, h('b', null, n.who), h('span', null, n.what), h('small', null, n.sees)));
-    const f = FLOWS[i];
-    if (f) row.push(h('div', { class: `biz-flow${lit === f.id ? ' lit' : ''}` }, h('b', null, f.term), h('span', null, f.def), h('i', { 'aria-hidden': 'true' })));
-  });
-  return h('div', { class: 'biz-map' }, h('div', { class: 'biz-row' }, row),
-    h('p', { class: 'micro biz-back' }, 'Money flows back up the chain. So does information, slower and more distorted at each step.'));
-}
-
-const business = {
-  id: 'business', title: 'The business',
+const loops = {
+  id: 'loops', title: 'The loops',
   render(ctx) {
     const { state, save } = ctx;
     const root = h('div', { class: 'screen stack-l' });
     const paint = () => {
-      const pick = DECISIONS.find((d) => d.id === state.decision);
+      const sorts = {};
+      TASKS.forEach((t) => { if (WHO_LABEL[state.sorts && state.sorts[t.id]]) sorts[t.id] = state.sorts[t.id]; });
+      state.sorts = sorts;
+      if (state.sorted && !TASKS.every((t) => sorts[t.id])) state.sorted = false;
+      const done = TASKS.every((t) => sorts[t.id]);
+      const hits = TASKS.filter((t) => sorts[t.id] === t.best).length;
       mount(root,
         h('div', { class: 'stack' },
           eyebrow(null, 'AI Decision Lab', 'for CPG leaders'),
-          h('h1', { class: 'h1 wide' }, 'How the business works.'),
-          h('p', { class: 'lede' }, 'Product flows down a chain. The supplier sees only its own end of it, and that view is the most delayed.')),
-        bizMap(pick ? pick.lit : null),
-        h('div', { class: 'stats' },
-          stat('Shipments', `${signed(D.pct, 1)}%`, 'what Ridgeline sees this quarter', 'bad'),
-          stat('Depletions', `${signed(D.depPct, 1)}%`, 'what distributors sold on'),
-          stat('Sell-through', 'No data', 'consumers buying at retail')),
-        h('p', { class: 'small' }, 'The gap is inventory sitting at distributors. ', h('strong', null, 'Business'), ' is how value flows, ', h('strong', null, 'System'), ' is how information flows, ', h('strong', null, 'People'), ' are who decides at each link.'),
+          h('h1', { class: 'h1 wide' }, 'Which loop is your business in?'),
+          h('p', { class: 'lede' }, 'Understand the problem deeply. Find the signal through the noise. Then build something better.')),
+        h('div', { class: 'loops' }, LOOPS.map((l) => h('div', { class: `loop ${l.id}` },
+          h('b', null, l.name),
+          h('div', { class: 'loop-path' }, l.path.flatMap((p, i) => [h('span', null, p), i < l.path.length - 1 ? h('i', { 'aria-hidden': 'true' }, '→') : null])),
+          h('p', { class: 'small' }, l.line)))),
         h('div', { class: 'stack-s' },
-          h('h3', { class: 'h3' }, 'Every link is a decision. Where would you point AI?'),
-          choices({ name: 'Decision', items: DECISIONS.map((d) => ({ id: d.id, title: d.title, sub: d.sub })), value: state.decision, onPick: (id) => { state.decision = id; save(); paint(); } })),
-        pick ? h('div', { class: 'finding reveal' },
-          h('div', { class: 'finding-head' }, h('span', { class: `chip ${pick.tone}` }, pick.label), h('p', { class: 'says' }, pick.why)),
-          pick.id !== 'forecast' ? h('p', { class: 'small' }, 'The rest of the lab follows the weekly forecast, the decision that fits.') : null) : null,
-        pick ? actions(ctx, { label: 'Teach a model to forecast' }) : null);
+          h('p', { class: 'small' }, 'Which is closer to your organization?'),
+          seg([['activity', 'Mostly activity'], ['both', 'Both'], ['learning', 'Mostly learning']], state.loop, (id) => { state.loop = id; save(); paint(); }),
+          state.loop ? h('p', { class: 'small reveal' }, 'Most organizations run both. AI pays off where it shortens the activity loop and speeds up the learning loop.') : null),
+        h('div', { class: 'stack-s' },
+          h('h3', { class: 'h3' }, state.sorted ? `Who does each job better? You matched ${hits} of ${TASKS.length}.` : 'Who does each job better?'),
+          h('div', { class: 'beliefs' }, TASKS.map((t) => {
+            if (!state.sorted) return h('div', { class: 'belief' }, h('p', { class: 'belief-q' }, t.text), seg(WHO, sorts[t.id], (id) => { sorts[t.id] = id; state.sorts = sorts; save(); paint(); }));
+            const hit = sorts[t.id] === t.best;
+            return h('div', { class: `belief result${hit ? ' hit' : ''}` }, h('p', { class: 'belief-q' }, t.text),
+              h('div', { class: 'belief-chips' }, h('span', { class: `chip ${TONE[t.best]}` }, WHO_LABEL[t.best]), h('span', { class: 'micro' }, hit ? 'You called it' : `You said: ${WHO_LABEL[sorts[t.id]]}`)),
+              h('p', { class: 'small' }, t.why));
+          }))),
+        state.sorted
+          ? actions(ctx, { label: 'Where does the time go?' })
+          : h('div', { class: 'actions' }, h('span', { class: 'micro' }, `${TASKS.filter((t) => sorts[t.id]).length} of ${TASKS.length} called`),
+              h('div', { class: 'actions-r' }, h('button', { class: 'btn', type: 'button', disabled: !done, onClick: () => { state.sorted = true; save(); paint(); } }, 'Check', h('span', { 'aria-hidden': 'true' }, '→')))));
       settle(root);
     };
     paint();
@@ -98,73 +99,55 @@ const business = {
   },
 };
 
-// ---------------------------------------------------------------- 3. What can it learn?
-const BELIEF_DEFS = [
-  { id: 'history', title: 'If it is accurate on past data, it will be accurate on new data.',
-    why: (t) => `The forecasting neuron missed by ${pc(t.trainWape, 1)} on weeks it learned from and ${pc(t.examWape, 1)} on new ones. The 12-neuron network missed by ${t.net.train.toFixed(1)} on points it learned from and ${t.net.test.toFixed(1)} on new ones.` },
-  { id: 'bigger', title: 'A bigger model is a better model.',
-    why: (t) => `On new points, 12 neurons missed by ${t.t12.toFixed(1)} and 3 neurons by ${t.t3.toFixed(1)}. On the forecast, the AI scored ${pc(t.wapeAI, 1)} against ${pc(t.wapeSimple, 1)} for the simple method.` },
-  { id: 'examples', title: 'More examples make a flexible model more reliable.',
-    why: (t) => `With ${t.nFew} examples, 12 neurons missed new points by ${t.few.toFixed(1)}. With ${t.nMany}, by ${t.many.toFixed(1)}.` },
-  { id: 'proxy', title: 'The numbers we have measure what we care about.',
-    why: (t) => `Shipments are what Ridgeline sees. Over a year they matched depletions (${pcs(t.gapYear)}), but ran ${pcs(t.quarterEnd)} at quarter-end and ${pcs(t.preBuy)} before the price increase.` },
-  { id: 'adoption', title: 'If it is accurate, people will use it.',
-    why: () => 'The lab holds no data on what planners do with a forecast. Only a pilot can tell.' },
-];
-let _tb = null;
-const beliefs = () => { _tb ||= testBeliefs(); return BELIEF_DEFS.map((b) => ({ ...b, test: _tb[b.id] })); };
+// ---------------------------------------------------------------- 2. Where does the time go?
+const SEG_COLOR = {
+  gather: 'color-mix(in srgb, var(--sys) 100%, var(--paper))', forecast: 'color-mix(in srgb, var(--sys) 60%, var(--paper))',
+  decks: 'var(--line-2)', review: 'var(--muted)', judgment: 'var(--biz)', markets: 'var(--ppl)',
+};
 
-const assume = {
-  id: 'assume', title: 'What it can learn',
+function weekBar(rows) {
+  return h('div', { class: 'wk-bar', role: 'img', 'aria-label': rows.map((r) => `${r.label} ${r.hours.toFixed(1)} hours`).join(', ') },
+    rows.map((r) => h('div', { class: 'wk-seg', style: { flex: `${r.hours} 1 0`, background: SEG_COLOR[r.id] }, title: `${r.label}: ${r.hours.toFixed(1)} h` },
+      r.hours >= 3.5 ? h('span', null, Math.round(r.hours)) : null)));
+}
+
+const time = {
+  id: 'time', title: 'Time and focus',
   render(ctx) {
     const { state, save } = ctx;
-    const BELIEFS = beliefs();
-    const root = h('div', { class: 'screen stack-l' });
-    // Answers saved by an older version of the lab can name claims that no longer exist. Keep only the valid ones.
-    const clean = () => {
-      const bets = {};
-      BELIEFS.forEach((b) => { if (VERDICT[state.bets && state.bets[b.id]]) bets[b.id] = state.bets[b.id]; });
-      state.bets = bets;
-      if (state.checked && !BELIEFS.every((b) => bets[b.id])) state.checked = false;
+    const share = () => (typeof state.autoShare === 'number' ? state.autoShare : 0.6);
+    const dest = () => (DEST[state.destination] ? state.destination : 'judgment');
+    const out = h('div', { class: 'stack' });
+    const paintOut = () => {
+      const f = freedHours(share()), a = annual(share(), dest());
+      const rows = weekAfter(share(), dest());
+      mount(out,
+        h('div', { class: 'wk' },
+          h('div', { class: 'wk-row' }, h('span', { class: 'wk-label' }, 'Today'), weekBar(WEEK.map((w) => ({ id: w.id, label: w.label, hours: w.hours })))),
+          h('div', { class: 'wk-row' }, h('span', { class: 'wk-label' }, 'With AI'), weekBar(rows))),
+        h('div', { class: 'wk-key small' }, [...WEEK, { id: 'markets', label: 'More brands and markets' }].filter((w) => w.id !== 'markets' || dest() === 'markets')
+          .map((w) => h('span', null, h('i', { style: { background: SEG_COLOR[w.id] } }), w.label))),
+        h('div', { class: 'stats' },
+          stat('Freed per planner', `${hrs(f)} a week`, `of a ${WEEK_HOURS}-hour week`, 'ai'),
+          stat('Freed across the team', `${Math.round(a.hours).toLocaleString('en-US')} h`, `${TEAM} planners, a year`),
+          stat('Worth', a.value ? money(a.value) : '$0', a.value ? 'in planner time, once redeployed' : 'the hours just refill')),
+        a.value
+          ? h('p', { class: 'small' }, 'Time is only value once it is redeployed. What it earns beyond that, fewer misses and better customer calls, is for a pilot to measure. A spreadsheet frees some of this too.')
+          : h('p', { class: 'small' }, 'Saved time that goes nowhere in particular is worth nothing. The calendar fills.'));
     };
-    const paint = () => {
-      clean();
-      const bets = state.bets;
-      const done = BELIEFS.every((b) => bets[b.id]);
-      const hits = BELIEFS.filter((b) => bets[b.id] === b.test.verdict).length;
-      const intro = h('div', { class: 'stack' },
-        ...top(3, 'sys', 'What can it actually learn?', state.checked
-          ? `You matched the evidence on ${hits} of ${BELIEFS.length}. Claims about AI sound sensible until someone tests them.`
-          : 'Five claims people make about AI. Call each one, then check it against the models you just trained.'),
-        h('p', { class: 'small' }, h('strong', null, 'Sometimes'), ' means true in some cases and false in others. ', h('strong', null, 'Can’t tell'), ' means the lab holds nothing that could say.'));
-      if (!state.checked) {
-        mount(root, intro,
-          h('div', { class: 'beliefs' }, BELIEFS.map((b) => h('div', { class: 'belief' },
-            h('p', { class: 'belief-q' }, b.title),
-            seg(VERDICTS.map((v) => [v.id, v.short]), bets[b.id], (id) => { bets[b.id] = id; save(); paint(); })))),
-          h('div', { class: 'actions' }, h('span', { class: 'micro' }, `${BELIEFS.filter((b) => bets[b.id]).length} of ${BELIEFS.length} called`),
-            h('div', { class: 'actions-r' }, h('button', { class: 'btn', type: 'button', disabled: !done, onClick: () => { state.checked = true; save(); paint(); window.scrollTo({ top: 0 }); } }, 'Check the evidence', h('span', { 'aria-hidden': 'true' }, '→')))));
-        settle(root);
-        return;
-      }
-      mount(root, intro,
-        h('div', { class: 'beliefs reveal' }, BELIEFS.map((b) => {
-          const v = VERDICT[b.test.verdict], mine = VERDICT[bets[b.id]], hit = mine.id === v.id;
-          return h('div', { class: `belief result${hit ? ' hit' : ''}` },
-            h('p', { class: 'belief-q' }, b.title),
-            h('div', { class: 'belief-chips' }, h('span', { class: `chip ${v.tone}` }, v.short), h('span', { class: 'micro' }, hit ? 'You called it' : `You said: ${mine.short}`)),
-            h('p', { class: 'prose' }, b.why(b.test)));
-        })),
-        note('The point', 'Ask of any AI claim: what did it learn from, what has it not seen, and what would prove it wrong?'),
-        actions(ctx, { label: 'Did it beat a spreadsheet?' }));
-      settle(root);
-    };
-    paint();
-    return root;
+    const sl = slider({ label: 'How much of the routine work the computer takes over', min: 0, max: 1, step: 0.1, value: share(), fmt: (v) => pc(v), onInput: (v) => { state.autoShare = v; save(); paintOut(); } });
+    const dst = h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'Where do the freed hours go?'),
+      choices({ name: 'Destination', items: DESTINATIONS.map((d) => ({ id: d.id, title: d.label, sub: d.sub })), value: dest(), onPick: (id) => { state.destination = id; save(); paintOut(); } }));
+    paintOut();
+    return h('div', { class: 'screen stack-l' },
+      h('div', { class: 'stack' }, ...top(2, 'biz', 'Where does the time go?',
+        'Time and focus are what a business runs short of. Here is one planner’s week (an illustrative assumption). Gathering and reconciling feel like the job. They are what everyone has learned to accept.')),
+      sl, out, dst,
+      actions(ctx, { label: 'How does the computer part learn?' }));
   },
 };
 
-// ---------------------------------------------------------------- 2. How it learns: one neuron, then more
+// ---------------------------------------------------------------- 3. How it learns: one neuron, then more
 const STEPS = 400;
 // Early steps are shown one by one (that is where the learning is), later ones in longer jumps.
 const framesFor = (steps) => { const out = []; let v = 0; while (v < steps) { out.push(Math.round(v)); v = v < 12 ? v + 1 : v * 1.12; } out.push(steps); return [...new Set(out)]; };
@@ -362,7 +345,7 @@ const learn = {
       stopPanel = panel.stop;
       mount(body,
         h('div', { class: 'stack' },
-          ...top(2, 'sys', stage === 'neuron' ? 'Teach it to forecast.' : 'Now give it more neurons.',
+          ...top(3, 'sys', stage === 'neuron' ? 'Teach it to forecast.' : 'Now give it more neurons.',
             stage === 'neuron'
               ? 'One artificial neuron: inputs times weights, added up. It starts with random weights, so its first forecasts are wild. Then it repeats one move: measure the miss, nudge the weights to shrink it.'
               : 'Add neurons and a model can bend to fit a pattern a line cannot. A neural network is this, stacked. Language models are the same idea with billions of weights.')),
@@ -409,24 +392,68 @@ const test = {
         stat('Simple, no AI', pc(ev.wapeSimple, 1), 'typical miss vs depletions'),
         stat('AI forecast', pc(ev.wapeAI, 1), 'typical miss vs depletions', 'ai')),
       h('p', { class: 'verdict' }, `Most of the gain is not AI. Forecasting depletions instead of shipments, with a trend measured from recent weeks, cuts the miss against depletions by ${Math.round(fixed * 100)}%. The AI is ${how} that.`),
+      note('Where it needs a person', `It cannot see a rival launching or a chain resetting its range, and accuracy on past weeks is not accuracy on new ones: the 12-neuron network missed by ${HISTORY().net.train.toFixed(1)} on points it learned from and ${HISTORY().net.test.toFixed(1)} on new ones. That judgment stays with people.`),
       note('How sure?', `Against the simple method the AI ${rangeText(vsSimple)}. When a range crosses zero, the data cannot tell them apart. A replay also flatters: the answers are known and nothing is at stake.`),
-      actions(ctx, { label: 'Design the pilot' }));
+      actions(ctx, { label: 'Make it stick' }));
   },
 };
 
-// ---------------------------------------------------------------- 5. The pilot (with the three questions)
-const SYS = [
-  { id: 'visibility', label: 'Inventory visibility', prove: 'Can we get weekly distributor inventory and depletions, and do distributors act on a shared forecast?' },
-  { id: 'data', label: 'Data', prove: 'Can we build a clean weekly history for every SKU group within four weeks?' },
-  { id: 'workflow', label: 'Workflow', prove: 'Will planners use a forecast that arrives as a column in their own spreadsheet?' },
-  { id: 'score', label: 'Scoreboard', prove: 'Can we agree, before the pilot, how every forecast will be scored?' },
+// ---------------------------------------------------------------- 5. Make it stick
+const GAPS = [
+  { id: 'business', lens: 'biz', title: 'Do you know what matters?', sub: 'Everything gets measured. Not everyone agrees what drives value.',
+    prove: 'Do the planner, sales and finance agree what a good forecast is worth, and how it is scored?' },
+  { id: 'system', lens: 'sys', title: 'Can the organization execute?', sub: 'The strategy makes sense. The processes around it do not support it.',
+    prove: 'Can the data, hand-offs and tools around the forecast support using it every week?' },
+  { id: 'people', lens: 'ppl', title: 'Can people act on it?', sub: 'The answer exists. People lack the clarity, authority or incentive.',
+    prove: 'Does the planner have the clarity, authority and incentive to act on the forecast?' },
 ];
-const PPL = [
-  { id: 'trust', label: 'Trust', prove: 'Do planners trust a forecast more when they can see why it said what it said?' },
-  { id: 'incentives', label: 'Incentives', prove: 'Does an honest depletions forecast get used when it looks like a missed target?' },
-  { id: 'accountability', label: 'Accountability', prove: 'Who answers for the plan, and can that person disagree with the model?' },
-  { id: 'distributors', label: 'Control', prove: 'Will a distributor change how much it takes from us because we shared a depletions forecast?' },
-];
+
+// Three lenses, and where they overlap.
+function venn() {
+  const svg = s('svg', { viewBox: '0 0 300 235', class: 'venn', role: 'img', 'aria-label': 'Three overlapping circles: Business creates value, System creates leverage, People creates capability. Their overlaps are scale, capability and leadership, and the centre is the multiplier.' });
+  const circ = (cx, cy, c) => svg.append(s('circle', { cx, cy, r: 72, class: `venn-c ${c}` }));
+  circ(112, 90, 'biz'); circ(188, 90, 'sys'); circ(150, 158, 'ppl');
+  const t = (x, y, text, cls = 'venn-t') => svg.append(s('text', { x, y, class: cls, 'text-anchor': 'middle' }, text));
+  t(78, 78, 'Business'); t(78, 93, 'value', 'venn-s');
+  t(222, 78, 'System'); t(222, 93, 'leverage', 'venn-s');
+  t(150, 205, 'People'); t(150, 220, 'capability', 'venn-s');
+  t(150, 64, 'Scale', 'venn-o'); t(116, 146, 'Leader-', 'venn-o'); t(116, 157, 'ship', 'venn-o'); t(184, 146, 'Capa-', 'venn-o'); t(184, 157, 'bility', 'venn-o');
+  t(150, 116, 'The', 'venn-o'); t(150, 127, 'multiplier', 'venn-o');
+  return svg;
+}
+
+const stick = {
+  id: 'stick', title: 'Make it stick',
+  render(ctx) {
+    const { state, save } = ctx;
+    const root = h('div', { class: 'screen stack-l' });
+    const paint = () => {
+      const g = GAPS.find((x) => x.id === state.gap);
+      const mode = REVIEW.find((r) => r.id === (state.pilot && state.pilot.human)) || REVIEW[1];
+      mount(root,
+        h('div', { class: 'stack' }, ...top(5, 'biz', 'Make it stick.', 'The problem is rarely one lens. It is the gap between them. The details change. The friction does not.')),
+        h('div', { class: 'stick-top' },
+          h('div', { class: 'stack-s' }, venn(),
+            h('p', { class: 'small' }, 'Scale: Business plus System. Capability: System plus People. Leadership: Business plus People. The multiplier: all three aligned.')),
+          h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'Where is your gap?'),
+            choices({ name: 'Gap', items: GAPS.map((x) => ({ id: x.id, title: x.title, sub: x.sub })), value: state.gap, onPick: (id) => { state.gap = id; save(); paint(); } }),
+            g ? h('p', { class: 'small reveal' }, h('strong', null, 'Test first: '), g.prove) : null)),
+        h('div', { class: 'stack-s' },
+          h('h3', { class: 'h3' }, 'Design the review and approvals'),
+          seg(REVIEW.map((r) => [r.id, r.label]), mode.id, (id) => { state.pilot.human = id; save(); paint(); }),
+          h('div', { class: 'stats' },
+            stat('Review time today', hrs(reviewHours('review')), 'per planner, a week'),
+            stat('With this design', hrs(reviewHours(mode.id)), 'per planner, a week', 'ai')),
+          h('p', { class: 'small' }, mode.note, ' In every option the planner stays accountable.')),
+        actions(ctx, { label: 'Design the pilot' }));
+      settle(root);
+    };
+    paint();
+    return root;
+  },
+};
+
+// ---------------------------------------------------------------- 6. The pilot
 const TARGETS = [0.05, 0.1, 0.2];
 const WEEKS_OPT = [8, 13, 26];
 const SCOPE_SHORT = { lean: 'one distributor (12 SKU groups)', full: 'all three distributors (12 SKU groups each)' };
@@ -439,16 +466,8 @@ const pilot = {
     const m = MODEL();
     const ev = EVAL();
     const vsSimple = bootstrapReduction(ev.rows, 'simple');
-    const est = pairGain(m, 'simple', 'ai'), noAI = pairGain(m, 'current', 'simple');
-    const val = valueRange(state.value, est), need = breakEvenMultiple(state.value, est.point);
+    const noAI = pairGain(m, 'current', 'simple');
     const root = h('div', { class: 'screen stack-l' });
-    const worry = (lens, label, items, key) => {
-      const w = items.find((x) => x.id === state[key]);
-      return h('div', { class: 'qrow', 'data-lens': lens },
-        h('div', { class: 'qrow-h' }, h('span', { class: 'lens-dot' }), h('b', null, label)),
-        seg(items.map((x) => [x.id, x.label]), state[key], (id) => { state[key] = id; save(); paint(); }),
-        w ? h('p', { class: 'small reveal' }, h('strong', null, 'Test first: '), w.prove) : h('p', { class: 'small' }, 'Which worries you most?'));
-    };
     const paint = () => {
       const p = state.pilot;
       const units = SCOPES[p.scope].units, stressUnits = Math.max(1, Math.round(units / 3));
@@ -456,11 +475,15 @@ const pilot = {
       const stress = simulatePilot(m, p.weeks, p.target, { vs: 'simple', units: stressUnits });
       const canTell = stress.power >= 0.8 && stress.falseAlarm <= 0.1;
       const above = p.target > Math.max(0, vsSimple.hi);
-      const sys = SYS.find((x) => x.id === state.sysWorry), ppl = PPL.find((x) => x.id === state.pplWorry);
+      const g = GAPS.find((x) => x.id === state.gap);
+      const mode = REVIEW.find((r) => r.id === p.human) || REVIEW[1];
+      const share = typeof state.autoShare === 'number' ? state.autoShare : 0.6, dest = DEST[state.destination] ? state.destination : 'judgment';
       const rows = [
         ['Do first, no AI', `Get weekly distributor inventory. Forecast depletions, then set shipments to that plus the inventory change you want. In the back-test the miss against depletions fell from ${pc(ev.wapeCurrent, 1)} to ${pc(ev.wapeSimple, 1)}, worth ${money(noAI.lo)} to ${money(noAI.hi)} a year here.`],
-        ['The test', `The AI cuts the typical miss in depletions by at least ${p.target * 100}% against the simple forecast, over ${p.weeks} weeks across ${SCOPE_SHORT[p.scope]}, planner reviewing every forecast. A win beats the better baseline by ${winText(sim.passAt)}, half the target, for luck. Scale if it wins, extend 13 weeks if close, stop if not. Written before it starts.`],
-        ['Prove first', [sys && sys.prove, ppl && ppl.prove].filter(Boolean).join(' ') || 'Pick a system and a people worry above to add them here.'],
+        ['Redeploy the time', `${hrs(freedHours(share))} a week per planner, moved to ${DEST[dest].label.toLowerCase()}. It counts as value only once it is redeployed.`],
+        ['The test', `The AI cuts the typical miss in depletions by at least ${p.target * 100}% against the simple forecast, over ${p.weeks} weeks across ${SCOPE_SHORT[p.scope]}. A win beats the better baseline by ${winText(sim.passAt)}, half the target, for luck. Scale if it wins, extend 13 weeks if close, stop if not. Written before it starts.`],
+        ['Review', `${mode.label}: ${hrs(reviewHours(mode.id))} a week per planner, down from ${hrs(reviewHours('review'))}. The planner stays accountable.`],
+        ['Close the gap first', g ? g.prove : 'Pick your gap on the last screen to add it here.'],
         ['Owner', 'Head of demand planning owns the scoreboard. VP of Supply Chain decides scale or stop.'],
       ];
       const text = `AI DECISION LAB: PILOT BRIEF\nRidgeline Bourbon, Texas (fictional)\n\n${rows.map(([t, x]) => `${t.toUpperCase()}\n${x}`).join('\n\n')}\n`;
@@ -469,15 +492,7 @@ const pilot = {
         setTimeout(() => { copy.textContent = 'Copy as text'; }, 2000);
       } }, 'Copy as text');
       mount(root,
-        h('div', { class: 'stack' }, ...top(5, 'biz', 'Turn the idea into an experiment.', 'Three questions decide whether an AI idea is real. Then design a test that could tell.')),
-        h('div', { class: 'qrow', 'data-lens': 'biz' },
-          h('div', { class: 'qrow-h' }, h('span', { class: 'lens-dot' }), h('b', null, 'Business: does it create value?')),
-          h('p', { class: 'prose' }, need === Infinity
-            ? `Over a no-AI forecast, AI adds nothing measurable here. `
-            : `Over a no-AI forecast, AI is worth about ${money(val.base.net)} a year after costs, and would need ${need.toFixed(1)}× the replay’s gain to pay for itself. `,
-            h('strong', null, 'Do this first, with no AI: '), `forecast depletions, not shipments. About ${money(noAI.point)} a year here.`)),
-        worry('sys', 'System: can it work?', SYS, 'sysWorry'),
-        worry('ppl', 'People: will they use it?', PPL, 'pplWorry'),
+        h('div', { class: 'stack' }, ...top(6, 'biz', 'Turn the idea into an experiment.', 'Decide what you will test, and check that a test this size could tell.')),
         h('div', { class: 'pilot-controls' },
           h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'The AI will cut the miss by at least'), seg(TARGETS.map((t) => [String(t), `${t * 100}%`]), String(p.target), (v) => { p.target = +v; save(); paint(); })),
           h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'For'), seg(WEEKS_OPT.map((w) => [String(w), `${w} weeks`]), String(p.weeks), (v) => { p.weeks = +v; save(); paint(); })),
@@ -492,7 +507,7 @@ const pilot = {
           h('dl', null, rows.flatMap(([t, x]) => [h('dt', null, t), h('dd', null, x)]))),
         h('div', { class: 'actions' },
           ctx.hasBack ? h('button', { class: 'back', type: 'button', onClick: ctx.back }, '← Back') : h('span'),
-          h('div', { class: 'actions-r' }, h('button', { class: 'btn ghost', type: 'button', onClick: () => ctx.go('business') }, 'Start again'))));
+          h('div', { class: 'actions-r' }, h('button', { class: 'btn ghost', type: 'button', onClick: () => ctx.go('loops') }, 'Start again'))));
       settle(root);
     };
     paint();
@@ -500,4 +515,4 @@ const pilot = {
   },
 };
 
-export const screens = [business, learn, assume, test, pilot];
+export const screens = [loops, time, learn, test, stick, pilot];

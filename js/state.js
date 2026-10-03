@@ -3,16 +3,17 @@
 
 import { DEFAULTS } from './value.js';
 
-const KEY = 'adlab.v4';
+const KEY = 'adlab.v5';
 
 const fresh = () => ({
-  decision: null,       // the decision they would point AI at on the business map
-  bets: {},             // their call on each belief, before they see the data
-  checked: false,       // whether they have checked those calls against the data
+  loop: null,           // which loop they think their organization is in
+  sorts: {},            // who they think does each job better
+  sorted: false,        // whether they have checked those calls
+  autoShare: 0.6,       // how much of the routine work the computer takes over, on the time screen
+  destination: 'judgment',   // where the freed hours go
+  gap: null,            // which gap between the lenses they would close first
   value: { ...DEFAULTS },
-  sysWorry: null,
-  pplWorry: null,
-  pilot: { target: 0.1, weeks: 13, scope: 'lean', human: 'review', primary: 'both', guard: ['excess', 'override'], rule: 'scale' },
+  pilot: { target: 0.1, weeks: 13, scope: 'lean', human: 'band', primary: 'both', guard: ['excess', 'override'], rule: 'scale' },
 });
 
 function load() {

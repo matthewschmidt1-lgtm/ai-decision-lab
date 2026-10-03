@@ -1,6 +1,6 @@
 # AI Decision Lab
 
-An interactive lab for nontechnical CPG leaders. They start with a map of how the business works (the supplier-to-consumer chain of a bourbon brand whose shipments are down 8% in Texas) and choose where AI fits, then teach a real neuron to forecast, grow it into a small neural network, test five claims about AI against the lab's own models, run the honest test against a no-AI baseline, and design the pilot. It is five screens, about eight minutes. **AI is not the product. Better decisions are.**
+An interactive lab for nontechnical CPG leaders, built on one foundation: running a business mixes work humans do better with work computers do better, and time and focus are what it runs short of. AI pays off when it moves hours from routine work to judgment (and only if the hours are redeployed), and it sticks when strategy, systems and people line up. Six screens, about ten minutes: which loop (activity vs learning) and who does each job better; where the time goes; how a neuron and a small neural network learn; the honest test against a no-AI baseline; the three lenses and the gap between them, with review and approvals; the pilot. **AI is not the product. Better decisions are.**
 
 - Live: https://ai-decision-lab-production-56eb.up.railway.app (a second domain, `ai-decision-lab-production.up.railway.app`, also serves it)
 - Repo: github.com/matthewschmidt1-lgtm/ai-decision-lab (public, branch `main`)
@@ -24,13 +24,13 @@ Sibling of Decision OS, Friction and Matthew's site. It carries their philosophy
   - **Score replays against depletions with no stockouts** (`want`), not a smooth hidden series, and tune every forecast's cushion the same way.
   - **Uncertainty on every headline**: block-bootstrap 90% ranges, rolling-origin folds, out-of-sample forecast bands. A range that crosses zero is reported as "cannot tell".
   - **Computed text, not canned text.** Any sentence that interprets a number (competitor shift, overconfidence, learning-rate limit, "AI vs simple") must be generated from the numbers, including the case where it comes out the other way.
-  - **Teaching claims must be decidable and not rigged.** The "What can it actually learn?" screen (`js/beliefs.js`) has five claims about AI, each tested by running the lab's own models (the forecasting neuron, the toy network), with four verdicts (holds / sometimes / not supported / can't tell). All four verdicts must appear, so the lesson is never "every claim is false". Learners call each verdict before the evidence is shown. Verdicts and numbers are computed, tests assert them, and tests assert they never read the hidden `demand`/`want`/`expect` columns. Claims about people (adoption) are honestly "can't tell": only a pilot can answer them.
+  - **Time saved is not value.** The time screen (`js/time.js`) counts planner hours as value only when they are redeployed; "nowhere in particular" is worth $0 because the calendar refills. The week's hours are an illustrative assumption, labelled as one, and a spreadsheet frees some of the same hours, so the pilot compares AI with it. Sorting jobs between humans and computers has a defensible answer for each job and all three answers (human, computer, together) must appear.
   - **Label oracles.** The decomposition and the "learned vs true" table use hidden generator truth; the screens say so.
   - **Bootstraps use circular blocks** (block starts uniform over all weeks), otherwise edge weeks are under-sampled and false alarms understated. `tests/run.html` asserts the simulated worlds are unbiased.
   - **The pilot simulation is null-aware**: it reports power and the false-alarm rate, calls a win halfway between nothing and the target, and its power depends on how many independent series the pilot covers (the headline uses a stress case where only a third of them average out noise). A target above the best case the back-test allowed is flagged.
-- **No scores, badges, points, leaderboards, accounts, backend.** Choices persist in `localStorage` (`adlab.v3`; bump the key when the state shape changes) so a refresh keeps your place. Nothing leaves the device.
+- **No scores, badges, points, leaderboards, accounts, backend.** Choices persist in `localStorage` (`adlab.v5`; bump the key when the state shape changes) so a refresh keeps your place. Nothing leaves the device.
 - **Credibility over promotion.** The lab must be able to conclude "AI isn't the right solution here": screen 4 says most of the gain is not AI, and the pilot brief opens with what to do first without AI.
-- **Keep it short.** The lab was cut from 21 screens to 7 and then merged to 5 (about 90% fewer words) because testers found it too long. One idea and one thing to do per screen; a test (`tests/run.html`) fails if the lab grows past 5 screens, 320 words on any screen, or 1,000 in total. Cut before adding, and do not expand the MVP (one scenario, open the hood, three lenses, pilot designer) until this loop is excellent. Depth over breadth.
+- **Keep it short.** The lab was cut from 21 screens to 5 and grew back to 6 when time and focus and the lens gap earned their own screens (still about 85% fewer words than the original) because testers found it too long. One idea and one thing to do per screen; a test (`tests/run.html`) fails if the lab grows past 6 screens, 320 words on any screen, or 1,300 in total. Cut before adding, and do not expand the MVP (one scenario, open the hood, three lenses, pilot designer) until this loop is excellent. Depth over breadth.
 
 ## Design language
 
@@ -71,8 +71,9 @@ js/charts.js           lineChart (bands, fills between lines, markers, log axis)
 js/data.js             the hidden truth + observed series; decompose(); stockoutLoss(); inventoryEstimate(); noiseFloor()
 js/forecast.js         features, gradient descent, exact solve, stability limit, explain, evaluate, rolling origin, bootstrap
 js/value.js            replay, cost curves, calculator, sensitivity, break-even, pilot power simulation
-js/beliefs.js          five claims about AI, each tested by running the lab's own models, and the four verdicts
-js/screens/lab.js      the five screens: business map, how it learns (neuron then network), what it can learn (claims about AI), honest test, pilot (with the three questions)
+js/beliefs.js          computed evidence from the lab's own models (accuracy on history vs new data, bigger vs better, more examples, proxy data); screen 4 quotes it
+js/time.js             one planner's 40-hour week, what the computer takes over, where freed hours go (no value unless redeployed), review hours by design
+js/screens/lab.js      the six screens: loops and who does it better, time and focus, how it learns (neuron then network), honest test, make it stick (lenses, gap, review), pilot
 js/nn.js               a tiny neural network (tanh hidden layer, Adam), seeded; the toy bend data; used by screen 3
 tests/run.html         browser test runner
 ```

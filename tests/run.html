@@ -14,9 +14,10 @@ import * as F from '../js/forecast.js';
 import * as V from '../js/value.js';
 import { recipeOf } from '../js/screens/common.js';
 import { testBeliefs, VERDICTS } from '../js/beliefs.js';
-import { screens } from '../js/screens/lab.js';
+import { screens, TASKS, WHO } from '../js/screens/lab.js';
 import * as NN from '../js/nn.js';
 import { state } from '../js/state.js';
+import * as TM from '../js/time.js';
 
 const out = document.getElementById('out');
 let failed = 0;
@@ -160,15 +161,15 @@ t('Beliefs never read the hidden truth columns', () => {
 
 section('Simplicity: few screens, little text');
 const words = (el) => { const c = el.cloneNode(true); c.querySelectorAll('svg').forEach((x) => x.remove()); return (c.textContent.match(/\S+/g) || []).length; };
-t('The lab is five screens', () => eq(screens.length === 5, `${screens.length}`));
-t('Every screen renders, and none carries more than 320 words outside its charts (all together under 1,000)', () => {
+t('The lab is six screens', () => eq(screens.length === 6, `${screens.length}`));
+t('Every screen renders, and none carries more than 320 words outside its charts (all together under 1,300)', () => {
   const saved = JSON.stringify(state);
-  state.bets = Object.fromEntries(['history', 'bigger', 'examples', 'proxy', 'adoption'].map((k) => [k, 'holds'])); state.checked = true; state.decision = 'forecast';
+  state.sorts = Object.fromEntries(['pattern', 'chain', 'reconcile', 'draft', 'rival'].map((k) => [k, 'human'])); state.sorted = true; state.gap = 'system';
   const noop = () => {};
   const counts = screens.map((sc) => { const el = sc.render({ state, save: noop, next: noop, back: noop, go: noop, hasBack: true, rerender: noop }); return [sc.id, words(el)]; });
   Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, JSON.parse(saved));
   const over = counts.filter(([, n]) => n > 320), total = counts.reduce((a, [, n]) => a + n, 0);
-  return eq(!over.length && total < 1000, `over: ${JSON.stringify(over)}, total ${total}`);
+  return eq(!over.length && total < 1300, `over: ${JSON.stringify(over)}, total ${total}`);
 });
 
 section('The small neural network (screen 3)');
@@ -202,16 +203,28 @@ t('Twelve neurons do worse on unseen points than three, in most random draws (me
 });
 
 section('Saved choices from an older version must never break a page');
-t('Stale answers and a stale "checked" flag are cleaned up instead of crashing the claims page', () => {
+t('Stale answers and a stale "checked" flag are cleaned up instead of crashing a page', () => {
   const saved = JSON.stringify(state), noop = () => {};
-  state.bets = { forecast: 'holds', distributors: 'conditions', promo: 'holds' }; state.checked = true; state.decision = 'nonsense'; state.sysWorry = 'gone'; state.pplWorry = 'gone';
+  state.sorts = { pattern: 'nonsense', old: 'human' }; state.sorted = true; state.gap = 'gone'; state.destination = 'gone'; state.autoShare = 'x'; state.loop = 'gone';
   let msg = true;
   try { for (const sc of screens) sc.render({ state, save: noop, next: noop, back: noop, go: noop, hasBack: true, rerender: noop }); }
   catch (e) { msg = `${e.message}`; }
-  const healed = state.checked === false;
+  const healed = state.sorted === false;
   Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, JSON.parse(saved));
   return eq(msg === true && healed, msg === true ? 'stale checked flag was kept' : msg);
 });
+
+section('Time and focus: the arithmetic behind screen 2');
+t('A planner’s week is 40 hours, and it stays 40 hours wherever the freed time goes', () => {
+  for (const dest of ['fill', 'markets', 'judgment']) for (const share of [0, 0.3, 0.6, 1]) {
+    const total = TM.weekAfter(share, dest).reduce((s, r) => s + r.hours, 0);
+    if (Math.abs(total - TM.WEEK_HOURS) > 1e-9) return `${dest} at ${share}: ${total}`;
+  }
+});
+t('Nothing is freed at zero automation, more is freed as it rises, and judgment work is never automated', () => eq(TM.freedHours(0) === 0 && TM.freedHours(0.3) < TM.freedHours(0.6) && TM.freedHours(0.6) < TM.freedHours(1) && TM.WEEK.find((w) => w.id === 'judgment').automatable === 0, 'freed hours not monotonic'));
+t('Time saved is worth nothing unless it is redeployed', () => eq(TM.annual(0.6, 'fill').value === 0 && TM.annual(0.6, 'judgment').value > 0 && TM.annual(0.6, 'markets').value === TM.annual(0.6, 'judgment').value, 'redeployment rule broken'));
+t('Reviewing exceptions only is faster than reviewing everything, and automatic is faster still', () => eq(TM.reviewHours('review') > TM.reviewHours('band') && TM.reviewHours('band') > TM.reviewHours('auto'), 'review hours out of order'));
+t('Who does each job better: every task has a valid best answer, and human, computer and together each win at least once', () => eq(TASKS.every((x) => WHO.some(([k]) => k === x.best)) && WHO.every(([k]) => TASKS.some((x) => x.best === k)), 'a task has no valid answer, or one answer never wins'));
 
 section('Vocabulary: shipments, depletions and sell-through are different steps');
 t('No screen uses shopper wording for depletions, or borrows sell-in, sell-out or pull-through', () => {
@@ -219,7 +232,7 @@ t('No screen uses shopper wording for depletions, or borrows sell-in, sell-out o
   const banned = /shopper|pull-through|sell-out|sell-in|what shoppers|consumers bought/i;
   const texts = [];
   for (const checked of [false, true]) {
-    state.bets = Object.fromEntries(['history', 'bigger', 'examples', 'proxy', 'adoption'].map((k) => [k, 'holds'])); state.checked = checked; state.decision = 'forecast'; state.sysWorry = 'data'; state.pplWorry = 'trust';
+    state.sorts = Object.fromEntries(['pattern', 'chain', 'reconcile', 'draft', 'rival'].map((k) => [k, 'human'])); state.sorted = checked; state.gap = 'system';
     for (const sc of screens) {
       const el = sc.render({ state, save: noop, next: noop, back: noop, go: noop, hasBack: true, rerender: noop });
       el.querySelectorAll('svg [aria-label], [aria-label], [title]').forEach((n) => texts.push([sc.id, n.getAttribute('aria-label') || n.getAttribute('title')]));
