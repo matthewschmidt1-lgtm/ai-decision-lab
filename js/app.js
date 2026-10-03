@@ -1,4 +1,4 @@
-// The shell: a hash router over five screens and a row of step dots.
+// The shell: a hash router over seven screens and a row of step dots.
 
 import { h, mount } from './ui.js';
 import { state, save, reset } from './state.js';

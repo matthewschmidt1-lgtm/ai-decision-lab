@@ -22,6 +22,13 @@
   --sys-soft: rgba(31, 122, 140, 0.10);
   --ppl-soft: rgba(47, 115, 87, 0.10);
 
+  /* The departments, and the mantra they all repeat. They appear only where the organism is drawn. */
+  --d-mkt: #9B3F78;
+  --d-sales: #C8601A;
+  --d-fin: #1F7A8C;
+  --d-ops: #5E7F2B;
+  --gold: #C79A1B;
+
   /* Meaning only */
   --good: #1E7F4F;
   --warn: #A8650A;

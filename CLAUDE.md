@@ -1,6 +1,6 @@
 # AI Decision Lab
 
-An interactive lab for nontechnical CPG leaders, built on one foundation: running a business mixes work humans do better with work computers do better, and time and focus are what it runs short of. AI pays off when it moves hours from routine work to judgment (and only if the hours are redeployed), and it sticks when strategy, systems and people line up. Seven screens, about twelve minutes: which loop (activity vs learning) and what happens if each job goes wrong (capability x uncertainty x consequence); where the time goes; how a neuron and a small neural network learn (training vs test error); the honest test against a no-AI baseline; the three lenses and the gap between them, with review and approvals; psychological safety (is it safe to try?); the pilot. **AI is not the product. Better decisions are.**
+An interactive lab for nontechnical CPG leaders, built on one thesis: **people choose what their own departments optimize, the organization is the sum of all those results, and AI shows what it is actually optimizing.** A company is read as one living model (data, representations, weights, attention, a loss function, learning) in which every department is its own loss function. Nobody owns the sum, so effort cancels and the organization gets in its own way. AI's job is interpretability for the organization: show the sum, find where signals decay, return time and focus to judgment, and help people choose one shared measure. Seven screens, about twelve minutes: the organism (departments pulling toward their own goals, with "Beat the market" as the mantra everyone repeats); the campaign (Marketing launches, Operations minimizes stock, the shelf runs empty, then a glut); where attention goes (a week as a 40-tile calendar, and who should do each job); how it learns (a neuron, then a small network; training vs test error); the honest test against a no-AI baseline; aligned and safe to try (the three lenses and their overlaps, psychological safety); and steer (a shared measure that realigns the pulls, then the pilot). **AI is not the product. Better decisions are.**
 
 - Live: https://ai-decision-lab-production-56eb.up.railway.app (a second domain, `ai-decision-lab-production.up.railway.app`, also serves it)
 - Repo: github.com/matthewschmidt1-lgtm/ai-decision-lab (public, branch `main`)
@@ -12,7 +12,7 @@ Sibling of Decision OS, Friction and Matthew's site. It carries their philosophy
 
 - **Use the three chain terms exactly.** **Shipments** = product the supplier ships to the distributor, nothing else. **Depletions** = product the distributor sells to on- and off-premise accounts, nothing else (the `dep` series). **Sell-through** = consumers buying at retail; the lab has no such series and must never cite one as evidence. Distributor inventory is the gap between shipments and depletions. Never say "shoppers bought", "shopper sales" or "pull-through" for depletions, and never use the three as synonyms. Today's forecast is a forecast of shipments; the simple and AI forecasts forecast depletions. A test run reads the copy for these words.
 - **Zero build.** Vanilla ES modules, plain CSS, hand-drawn SVG, no dependencies. This Mac has no Node/npm, and every sibling project is zero-build. The master prompt prefers React/TS/Vite; the deviation is deliberate. Do not introduce npm tooling.
-- **The ML is real.** Both models on screen 3 train live: the forecasting neuron on the lab's data, and a small neural network (`js/nn.js`) on a labelled toy pattern, with back-propagation checked against a numerical gradient in the tests. The toy's seed was chosen to illustrate memorizing noise, and a test confirms the effect holds in most random draws. Never fake model behaviour with a decorative animation. The model in `js/forecast.js` trains in the browser; the forecast settling, the weights, and divergence at a high learning speed are all the real thing. If a screen shows an AI/ML process, it must be computed.
+- **The ML is real.** Both models on screen 4 train live: the forecasting neuron on the lab's data, and a small neural network (`js/nn.js`) on a labelled toy pattern, with back-propagation checked against a numerical gradient in the tests. The toy's seed was chosen to illustrate memorizing noise, and a test confirms the effect holds in most random draws. Never fake model behaviour with a decorative animation. The model in `js/forecast.js` trains in the browser; the forecast settling, the weights, and divergence at a high learning speed are all the real thing. If a screen shows an AI/ML process, it must be computed.
 - **All data is fictional and deterministic** (seeded generator in `js/data.js`). Numbers must agree across screens, which is why every screen reads from `data.js` / `forecast.js` / `value.js` instead of hard-coding.
 - **Never "guaranteed savings".** Use "potential value", show every assumption, let the user change them, show a range ("scenario bounds, not probabilities"), and say back-tests flatter.
 - **Evaluation integrity (learned the hard way, from six review passes).** Do not weaken these:
@@ -30,15 +30,17 @@ Sibling of Decision OS, Friction and Matthew's site. It carries their philosophy
   - **Label oracles.** The decomposition and the "learned vs true" table use hidden generator truth; the screens say so.
   - **Bootstraps use circular blocks** (block starts uniform over all weeks), otherwise edge weeks are under-sampled and false alarms understated. `tests/run.html` asserts the simulated worlds are unbiased.
   - **The pilot simulation is null-aware**: it reports power and the false-alarm rate, calls a win halfway between nothing and the target, and its power depends on how many independent series the pilot covers (the headline uses a stress case where only a third of them average out noise). A target above the best case the back-test allowed is flagged.
-- **No scores, badges, points, leaderboards, accounts, backend.** Choices persist in `localStorage` (`adlab.v6`; bump the key when the state shape changes) so a refresh keeps your place. Nothing leaves the device.
-- **Credibility over promotion.** The lab must be able to conclude "AI isn't the right solution here": screen 4 says most of the gain is not AI, and the pilot brief opens with what to do first without AI.
-- **Keep it short.** The lab was cut from 21 screens to 5 and grew back to 7 as time and focus, the lens gap and psychological safety earned their own screens (still about 80% fewer words than the original) because testers found it too long. One idea and one thing to do per screen; a test (`tests/run.html`) fails if the lab grows past 7 screens, 320 words on any screen, or 1,700 in total. Cut before adding, and do not expand the MVP (one scenario, open the hood, three lenses, pilot designer) until this loop is excellent. Depth over breadth.
+- **No scores, badges, points, leaderboards, accounts, backend.** Choices persist in `localStorage` (`adlab.v7`; bump the key when the state shape changes) so a refresh keeps your place. Nothing leaves the device.
+- **Credibility over promotion.** The lab must be able to conclude "AI isn't the right solution here": screen 5 says most of the gain is not AI, and the pilot brief opens with what to do first without AI.
+- **Keep it short.** The lab was cut from 21 screens to 5 and grew back to 7 as time and focus, the lens gap and psychological safety earned their own screens (still about 80% fewer words than the original) because testers found it too long. One idea and one thing to do per screen, and let colour, shape and motion carry the story before words do. A test (`tests/run.html`) fails if the lab grows past 7 screens, 320 words on any screen (screen 7 counts its two halves separately), or 1,900 in total. Cut before adding, and do not expand the MVP until this loop is excellent. Depth over breadth.
+- **The organism is an illustration with real arithmetic.** Department directions, pull strengths, the campaign (1,000 cases a week, a six-week lift, a three-week lead time, $30 margin, $0.50 a case a week to hold stock, past campaigns landing at 80% of plan) are assumptions, labelled on screen. What must stay true: the pulls add as vectors (`sumPulls`), blending a shared measure turns every direction toward the star, the stock simulation conserves units (sold + unmet = demand, stock never negative), and the story's claims are asserted by tests (Operations alone holds the least stock and still costs the most; trusting the plan over-builds; the AI-adjusted plan never runs out). Do not claim the AI "knows" the 80%: it is stated as an assumption.
+- **Motion is quiet, and optional.** Arms grow out of the core, the star glows with how much reaches it, a playhead walks the campaign, tiles pop when hours move, signals stall at a wall. Everything stops under `prefers-reduced-motion`, and no screen may need the animation to be understood.
 
 ## Design language
 
 Apple / Mike Markkula restraint: **empathy** (start from the learner's business situation, never from technology), **focus** (one question per screen, leave things out), **impute** (craft in the details signals credibility: real model, honest labels, precise type).
 
-Ivory `#F6F5F0`, ink `#15171A`, one accent blue `#2457D6` (used for the AI series and primary state). The lens colours (Business orange, System teal, People green) appear only where a lens is the subject. Green/red are for meaning only. System font stack, no webfonts. Chart series: ink = actual depletions, grey dashed = today's process, khaki dotted = the simple no-AI forecast, blue = the AI.
+Ivory `#F6F5F0`, ink `#15171A`, one accent blue `#2457D6` (used for the AI series, the AI's reading of the sum and primary state). The lens colours (Business orange, System teal, People green) appear only where a lens is the subject. The department colours (Marketing plum, Sales orange, Finance teal, Operations olive) and the gold of the "Beat the market" star appear only where the organism is drawn. Green/red are for meaning only. System font stack, no webfonts. Chart series: ink = actual depletions, grey dashed = today's process, khaki dotted = the simple no-AI forecast, blue = the AI.
 
 Every screen answers: what am I looking at, what can I change, what happened, what next. The eyebrow line names the step ("3 of 7") and its lens. Seven step dots in the header show progress and go back.
 
@@ -62,21 +64,26 @@ GitHub `matthewschmidt1-lgtm/ai-decision-lab`, deployed on Railway from `main`. 
 
 ```
 index.html             shell: header with step dots, footer
-css/tokens.css         palette, type scale, motion
+css/tokens.css         palette (incl. department colours), type scale, motion
 css/base.css           reset, chrome, type, layout helpers, buttons
 css/components.css     choices, bars, sliders, toggles, charts, notes, tables
-css/screens.css        beliefs, lens cards, pilot controls, brief, print
-js/app.js              hash router, step dots
-js/state.js            what the learner has chosen (localStorage)
-js/ui.js               DOM helpers (h, s), bars, waterfall, rangeBars, dotPlot, chain, slider, choices, seg, stat, note, term
-js/charts.js           lineChart (bands, fills between lines, markers, log axis) and histogram
+css/screens.css        brief, pilot controls, lens layout, learn controls, print
+css/org.css            the organism, campaign chart and shelf, week calendar, signals, reduced motion
+js/app.js              hash router, step dots, recovery screen
+js/state.js            what the learner has chosen (localStorage, key adlab.v7)
+js/ui.js               DOM helpers (h, s), bars, slider, choices, seg, stat, note, whenVisible
+js/charts.js           lineChart (bands, fills between lines, markers, log axis)
 js/data.js             the hidden truth + observed series; decompose(); stockoutLoss(); inventoryEstimate(); noiseFloor()
 js/forecast.js         features, gradient descent, exact solve, stability limit, explain, evaluate, rolling origin, bootstrap
 js/value.js            replay, cost curves, calculator, sensitivity, break-even, pilot power simulation
-js/beliefs.js          computed evidence from the lab's own models (accuracy on history vs new data, bigger vs better, more examples, proxy data); screen 4 quotes it
+js/beliefs.js          computed evidence from the lab's own models (accuracy on history vs new data, bigger vs better, more examples, proxy data); screen 5 quotes it
 js/time.js             one planner's 40-hour week, what the computer takes over, where freed hours go (no value unless redeployed), review hours by design
-js/screens/lab.js      the seven screens: loops and failure modes, time and focus, how it learns (neuron then network), honest test, make it stick (lenses, gap, review), safe to try, pilot
-js/nn.js               a tiny neural network (tanh hidden layer, Adam), seeded; the toy bend data; used by screen 3
+js/org.js              the departments and their pulls (vector sum, shared measure), and the campaign stock simulation with its ledger
+js/orgfig.js           the organism drawn once and eased: core, arms, star, the AI's reading of the sum
+js/nn.js               a tiny neural network (tanh hidden layer, Adam), seeded; the toy bend data; used by screen 4
+js/screens/common.js   step names, the top of every screen, actions
+js/screens/org.js      screens 1 and 2: the organism and the campaign
+js/screens/lab.js      screens 3 to 7: attention (calendar and jobs), how it learns, the honest test, aligned and safe, steer (shared measure, then the pilot)
 tests/run.html         browser test runner
 ```
 

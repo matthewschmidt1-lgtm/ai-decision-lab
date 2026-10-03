@@ -1,0 +1,151 @@
+/* The organism, the campaign, the week as a calendar, and the signals. Colour carries the story;
+   motion is slow and quiet, and stops entirely for anyone who asks their device for less motion. */
+
+/* ---------- 1. The organism ---------- */
+.org-wrap { display: grid; place-items: center; }
+.org { width: 100%; max-width: 640px; height: auto; overflow: visible; }
+.org-ring { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 6; }
+.org-goal { stroke: var(--gold); stroke-width: 1.5; stroke-dasharray: 5 6; opacity: 0.7; }
+.org-star { fill: var(--gold); }
+.org-halo { fill: var(--gold); opacity: 0.18; transform-box: fill-box; transform-origin: center; transition: opacity 700ms var(--ease), transform 700ms var(--ease); }
+.org-halo.on { opacity: calc(0.1 + 0.55 * var(--reach, 0.5)); transform: scale(calc(0.7 + 0.5 * var(--reach, 0.5))); }
+.org-mantra { font: 700 14px var(--font-display); fill: var(--ink); letter-spacing: -0.01em; }
+.org-shaft { stroke-width: 5; stroke-linecap: round; opacity: 0.28; }
+.org-flow { stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 1 9; animation: org-flow 1.8s linear infinite; }
+.org-tip { stroke: var(--bg); stroke-width: 3; }
+.org-label { paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
+.org-name { font: 650 14px var(--font); }
+.org-goaltext { font: 500 12px var(--font); fill: var(--muted); }
+.org-core { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; }
+.org-coretext { font: 650 10.5px var(--font); fill: var(--ink); }
+.org-pulse { fill: none; stroke: var(--ink); stroke-width: 1.2; opacity: 0; transform-box: fill-box; transform-origin: center; animation: org-pulse 3.6s ease-out infinite; }
+.org-pulse.b { animation-delay: 1.8s; }
+.org-result { opacity: 0; transition: opacity 400ms var(--ease); }
+.org-result.on { opacity: 1; }
+.org-rline { stroke: var(--accent); stroke-width: 7; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1100ms var(--ease); }
+.org-result.on .org-rline { stroke-dashoffset: 0; }
+.org-rhead { fill: var(--accent); opacity: 0; transition: opacity 300ms 900ms; }
+.org-result.on .org-rhead { opacity: 1; }
+.org-arc { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 3 4; }
+.org-rtext { font: 650 13px var(--font); fill: var(--accent); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; }
+@keyframes org-flow { to { stroke-dashoffset: -10; } }
+@keyframes org-pulse { 0% { opacity: 0.45; transform: scale(1); } 100% { opacity: 0; transform: scale(2.1); } }
+
+.org-split { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: clamp(20px, 4vw, 48px); align-items: center; }
+.pulls { display: grid; gap: 2px; width: 100%; }
+.pull { display: grid; gap: 0; }
+.pull-name { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: var(--fs-small); }
+.pull-name i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.pull input[type="range"]::-webkit-slider-runnable-track { background: linear-gradient(to right, var(--c) var(--fill), var(--line-2) var(--fill)); }
+.pull input[type="range"]::-moz-range-progress { background: var(--c); }
+@media (max-width: 760px) { .org-split { grid-template-columns: 1fr; } }
+
+/* ---------- 2. The campaign ---------- */
+.camp-wrap { background: var(--paper); border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--line); padding: clamp(10px, 2vw, 18px); }
+.camp { display: block; width: 100%; height: auto; }
+.camp-flag { fill: var(--d-mkt); }
+.camp-flag-t { font: 700 12.5px var(--font); fill: #fff; }
+.camp-band { fill: var(--d-mkt); opacity: 0.07; }
+.camp-base { stroke: var(--line-2); stroke-width: 1; }
+.camp-x { font: 500 11px var(--mono); fill: var(--muted); }
+.camp-stock-fill { fill: var(--d-ops); opacity: 0.16; }
+.camp-stock { fill: none; stroke: var(--d-ops); stroke-width: 2.5; stroke-linejoin: round; }
+.camp-demand { fill: none; stroke: var(--d-mkt); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.camp-lost { animation: camp-lost 1.6s ease-in-out infinite; }
+.camp-call { font: 700 13px var(--font); fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 4px; }
+.camp-call.bad { fill: var(--bad); }
+.camp-lead { stroke: var(--bad); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.camp-head { stroke: var(--ink); stroke-width: 1.5; opacity: 0.5; transition: opacity 400ms; }
+@keyframes camp-lost { 50% { opacity: 0.55; } }
+
+.shelf { display: flex; align-items: center; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; }
+.bottles { display: flex; gap: 6px; align-items: flex-end; }
+.bottle { width: 14px; height: 38px; border-radius: 4px 4px 3px 3px; background: var(--d-ops); position: relative; transition: background 300ms, opacity 300ms, transform 300ms var(--ease); }
+.bottle::before { content: ""; position: absolute; left: 4px; right: 4px; top: -7px; height: 8px; border-radius: 2px 2px 0 0; background: inherit; }
+.bottle.gone { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line-2); transform: translateY(2px); }
+.bottle.gone::before { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line-2); }
+.shelf-cap { display: flex; align-items: center; gap: 12px; }
+.oos { font: 700 0.75rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--bad); background: rgba(179, 38, 30, 0.1); padding: 4px 10px; border-radius: var(--r-pill); opacity: 0; transition: opacity 200ms; }
+.oos.on { opacity: 1; animation: oos 1.1s ease-in-out infinite; }
+@keyframes oos { 50% { opacity: 0.55; } }
+.camp-key { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.camp-key span, .led-key span { display: inline-flex; align-items: center; gap: 6px; }
+.camp-key i { width: 18px; height: 4px; border-radius: 2px; }
+.k-demand { background: var(--d-mkt); }
+.k-stock { background: var(--d-ops); }
+.k-lost { background: var(--bad); height: 8px !important; width: 8px !important; border-radius: 2px !important; }
+.camp-results { min-height: 40px; }
+
+.ledger { display: grid; gap: 8px; }
+.led-row { display: grid; grid-template-columns: minmax(130px, 190px) minmax(0, 1fr) 54px; gap: 12px; align-items: center; padding: 4px 0; opacity: 0.55; transition: opacity 300ms; }
+.led-row.on { opacity: 1; }
+.led-name { font-size: var(--fs-small); font-weight: 600; }
+.led-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--sunk); }
+.led-bar i, .led-key i { display: block; height: 100%; }
+.led-miss { background: var(--bad); }
+.led-hold { background: var(--d-ops); }
+.led-bar i { transform-origin: left; animation: grow 900ms var(--ease) both; }
+.led-val { text-align: right; font-weight: 650; font-size: var(--fs-small); }
+.led-key { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 4px; }
+.led-key i { width: 10px; height: 10px; border-radius: 3px; }
+@media (max-width: 560px) { .led-row { grid-template-columns: 1fr 48px; } .led-name { grid-column: 1 / -1; } }
+
+/* ---------- 3. The week as a calendar ---------- */
+.cals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(16px, 4vw, 40px); }
+.cal { display: grid; gap: 8px; }
+.cal-head { display: flex; justify-content: space-between; align-items: baseline; }
+.cal-title { font: 650 0.95rem var(--font-display); letter-spacing: -0.01em; }
+.cal-grid { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(8, 1fr); grid-auto-flow: column; gap: 3px; }
+.cal-days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; font: 600 0.6875rem var(--mono); color: var(--muted); text-align: center; }
+.tile { height: 17px; border-radius: 4px; transition: opacity 260ms, transform 260ms var(--ease); box-shadow: inset 0 0 0 1px rgba(21, 23, 26, 0.06); }
+.tile.swap { animation: tile-pop 520ms var(--ease) both; animation-delay: var(--d, 0ms); }
+.tile.dim { opacity: 0.18; }
+@keyframes tile-pop { 0% { transform: scale(0.55); filter: brightness(1.3); } 100% { transform: none; filter: none; } }
+.jobs { display: flex; flex-wrap: wrap; gap: 6px 8px; }
+.job { display: inline-flex; align-items: center; gap: 8px; border: 0; background: var(--paper); border-radius: var(--r-pill); box-shadow: inset 0 0 0 1px var(--line); padding: 6px 12px; font: 600 0.8125rem var(--font); color: var(--ink); }
+.job i { width: 12px; height: 12px; border-radius: 4px; flex: none; box-shadow: inset 0 0 0 1px rgba(21, 23, 26, 0.1); }
+.job.static { background: transparent; box-shadow: none; padding-left: 0; color: var(--ink-2); font-weight: 500; }
+.job[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--accent); }
+button.job:hover { box-shadow: inset 0 0 0 1px var(--line-2); }
+button.job[aria-pressed="true"]:hover { box-shadow: inset 0 0 0 2px var(--accent); }
+.jobcard { background: var(--paper); border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--line); padding: clamp(14px, 2.5vw, 20px); display: grid; gap: 12px; }
+.pips { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.pip { display: inline-flex; align-items: center; gap: 6px; font: 600 0.75rem var(--mono); color: var(--ink-2); }
+.pip i { width: 28px; height: 6px; border-radius: 3px; background: var(--line-2); position: relative; overflow: hidden; }
+.pip i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w); background: var(--ink-2); border-radius: 3px; }
+@media (max-width: 560px) { .cals { grid-template-columns: 1fr; } .tile { height: 16px; } }
+
+/* ---------- 6. Aligned, and safe ---------- */
+.venn-g { transition: transform 900ms var(--ease); }
+.venn-o { transition: opacity 600ms var(--ease); }
+.venn-o.faint { opacity: 0.16; }
+.venn-c { transition: fill-opacity 600ms; }
+.venn-c.drift { fill-opacity: 0.2; }
+.signals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.signal { background: var(--paper); border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--line); padding: 14px 16px 12px; display: grid; gap: 6px; transition: box-shadow 300ms; }
+.signal.on { box-shadow: inset 0 0 0 2px var(--accent); }
+.signal.unsafe.on { box-shadow: inset 0 0 0 2px var(--bad); }
+.signal b { font: 650 1rem var(--font-display); letter-spacing: -0.01em; }
+.sig { width: 100%; height: auto; }
+.sig-line { stroke: var(--line-2); stroke-width: 2; }
+.sig-node { fill: var(--paper); stroke: var(--ink-2); stroke-width: 2; }
+.sig-node.lead { transition: fill 400ms; }
+.signal.safe .sig-node.lead { fill: var(--accent); stroke: var(--accent); }
+.signal.unsafe .sig-node.lead { fill: var(--good); stroke: var(--good); opacity: 0.55; }
+.sig-wall { fill: var(--bad); }
+.signal.safe .sig-wall { display: none; }
+.sig-text { font: 600 10px var(--font); fill: var(--muted); text-anchor: middle; }
+.sig-dot { fill: var(--bad); animation: sig-travel 3.6s ease-in-out infinite; animation-delay: var(--d, 0s); opacity: 0; }
+.signal.unsafe .sig-dot { animation-name: sig-stall; }
+@keyframes sig-travel { 0% { transform: translateX(30px); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateX(270px); opacity: 0; } }
+@keyframes sig-stall { 0% { transform: translateX(30px); opacity: 0; } 10% { opacity: 1; } 55% { transform: translateX(176px); opacity: 1; } 70% { transform: translateX(176px); opacity: 0; } 100% { transform: translateX(176px); opacity: 0; } }
+@media (max-width: 640px) { .signals { grid-template-columns: 1fr; } }
+
+/* ---------- 7. Steer ---------- */
+.measure-note { max-width: var(--measure); }
+
+@media (prefers-reduced-motion: reduce) {
+  .org-flow, .org-pulse, .camp-lost, .oos.on, .sig-dot, .tile.swap { animation: none !important; }
+  .sig-dot { opacity: 1; }
+}
+@media print { .org-flow, .org-pulse { animation: none !important; } }

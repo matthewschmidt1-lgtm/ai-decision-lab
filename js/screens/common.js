@@ -2,16 +2,15 @@ import { h, eyebrow } from '../ui.js';
 import { monthLabel } from '../data.js';
 import { ALL_GROUPS, DEFAULT_CAUTION, trainModel } from '../forecast.js';
 
-export const EXP_NAMES = { 1: 'Find the opportunity', 2: 'Open the hood', 3: 'Design the pilot' };
+export const STEP_NAMES = ['The organism', 'The campaign', 'Where attention goes', 'How it learns', 'The honest test', 'Safe and aligned', 'Steer'];
+export const TOTAL = STEP_NAMES.length;
 
-// The top of every screen: which lens, which experience, where in the learning loop, and the one question.
-export function head({ lens, exp, stage, title, wide, lede }) {
-  return [
-    eyebrow(lens, `Experience ${exp}`, EXP_NAMES[exp], stage),
-    h('h1', { class: `h1${wide ? ' wide' : ''}` }, title),
-    lede ? h('p', { class: 'lede' }, lede) : null,
-  ];
-}
+// The top of every screen: where you are, and the one question.
+export const top = (n, lens, title, lede) => [
+  eyebrow(lens, `${n} of ${TOTAL}`, STEP_NAMES[n - 1]),
+  h('h1', { class: 'h1 wide' }, title),
+  lede ? h('p', { class: 'lede' }, lede) : null,
+];
 
 // Back on the left, the one thing to do next on the right.
 export function actions(ctx, { label, onNext, disabled, hint }) {

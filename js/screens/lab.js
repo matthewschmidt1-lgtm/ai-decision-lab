@@ -1,22 +1,24 @@
 // The lab, in seven screens. One idea and one thing to do on each.
-//   1 Which loop are you in? (and what happens if each job goes wrong)   2 Where does the time go?
-//   3 How it learns (one neuron, then more)   4 The honest test
-//   5 Make it stick (the three lenses and the gap)   6 Is it safe to try?   7 The pilot
-// Everything is computed live. The models on screen 3 are trained in the browser.
+//   1 The organism: every department pulls toward its own goal   2 The campaign: what the sum costs
+//   3 Where attention goes (time and focus)   4 How it learns   5 The honest test
+//   6 Safe and aligned   7 Steer: what to optimize, and the pilot
+// Everything is computed live. The models on screen 4 are trained in the browser.
 
-import { h, s, bars, stat, note, mount, int, money, slider, seg, choices, eyebrow, table } from '../ui.js';
+import { h, s, bars, stat, note, mount, int, money, slider, seg, choices, whenVisible } from '../ui.js';
 import { lineChart } from '../charts.js';
-import { WEEKS, weekLabel, noiseFloor, COMPETITOR_WEEK, CHAIN_CUT_WEEK } from '../data.js';
+import { WEEKS, weekLabel, COMPETITOR_WEEK, CHAIN_CUT_WEEK, decompose } from '../data.js';
 import { ALL_GROUPS, DEFAULT_CAUTION, TEST_WEEKS, trainModel, evaluate, bootstrapReduction, dataset, gradientDescent, solveExact,
          maxStableRate, simpleForecast } from '../forecast.js';
 import { SCOPES, pairGain, simulatePilot } from '../value.js';
 import { toyData, trainNet, predict, mse } from '../nn.js';
 import { testBeliefs } from '../beliefs.js';
-import { WEEK, DESTINATIONS, DEST, TEAM, WORK_WEEKS, RATE, ROUTINE_HOURS, grossHours, netHours, freedHours, routineShare, weekAfter, annualRange, REVIEW, reviewHours } from '../time.js';
-import { actions, ticksFor, rangeText } from './common.js';
+import { WEEK, DESTINATIONS, DEST, TEAM, WORK_WEEKS, RATE, ROUTINE_HOURS, grossHours, netHours, routineShare, weekAfter, annualRange, REVIEW, reviewHours } from '../time.js';
+import { sumPulls, runCampaign } from '../org.js';
+import { orgFigure } from '../orgfig.js';
+import { organism, campaign } from './org.js';
+import { actions, ticksFor, rangeText, STEP_NAMES, top } from './common.js';
 
-export const STEP_NAMES = ['The loops', 'Time and focus', 'How it learns', 'The honest test', 'Make it stick', 'Safe to try', 'The pilot'];
-const TOTAL = STEP_NAMES.length;
+export { STEP_NAMES };
 
 const pc = (v, d = 0) => `${(v * 100).toFixed(d)}%`;
 const hrs = (v) => `${v.toFixed(1).replace('.0', '')} h`;
@@ -31,100 +33,33 @@ const HISTORY = () => (_hist ||= testBeliefs().history);
 
 const settle = (root) => { if (root._seen) root.classList.add('static'); root._seen = true; };
 
-// The top of every screen: where you are, and the one question.
-const top = (n, lens, title, lede) => [
-  eyebrow(lens, `${n} of ${TOTAL}`, STEP_NAMES[n - 1]),
-  h('h1', { class: 'h1 wide' }, title),
-  lede ? h('p', { class: 'lede' }, lede) : null,
-];
-
-// ---------------------------------------------------------------- 1. Which loop are you in?
-const LOOPS = [
-  { id: 'activity', name: 'The activity loop', path: ['Data', 'Spreadsheet', 'Deck', 'Meeting', '“Can you cut it another way?”', 'Spreadsheet'], line: 'A lot of activity, not much progress.' },
-  { id: 'learning', name: 'The learning loop', path: ['Signal', 'Understanding', 'Decision', 'Action', 'Learning'], line: 'Every decision makes the next one better.' },
-];
+// ---------------------------------------------------------------- 3. Where attention goes
 export const WHO = [['human', 'Human'], ['computer', 'Computer'], ['together', 'Together']];
 const WHO_LABEL = Object.fromEntries(WHO);
-const TONE = { human: 'who-human', computer: 'who-computer', together: 'who-together' };
 // The right workflow is not set by capability alone. It is capability, uncertainty and consequence.
-export const TASKS = [
-  { id: 'pattern', text: 'Spot a weekly pattern in three years of orders', best: 'computer', cap: 'High', unc: 'Low', con: 'Low',
-    design: 'The computer, spot-checked by a person.',
-    fail: { computer: 'It may find a pattern that is not real. Cheap to check, cheap to be wrong.', human: 'Too slow to read three years of weeks, so the pattern is never found.', together: 'A sound default: the computer finds it, a person sanity-checks it.' } },
-  { id: 'chain', text: 'Decide whether to give Chain X the price it wants', best: 'together', cap: 'Medium', unc: 'High', con: 'High',
-    design: 'A person decides and is accountable, with the computer supporting the analysis.',
-    fail: { computer: 'It optimizes on what Chain X has paid before. The relationship takes the damage.', human: 'Ignoring the data leaves money on the table.', together: 'The computer brings elasticity and profitability. A person owns the call.' } },
-  { id: 'reconcile', text: 'Reconcile two distributors’ spreadsheets', best: 'computer', cap: 'High', unc: 'Low', con: 'Medium',
+// One job for each block of the week, and what happens if a person, a computer, or both get it wrong.
+export const JOBS = [
+  { id: 'gather', short: 'Gather data', best: 'computer', cap: 'High', unc: 'Low', con: 'Medium',
     design: 'The computer, with automatic checks and flagged exceptions.',
     fail: { computer: 'A silent mismatch slips through unless it checks itself.', human: 'Slow, and a tired eye misses rows.', together: 'The computer matches. A person reviews only the rows it flags.' } },
-  { id: 'draft', text: 'Draft next week’s forecast, then check it against what you know', best: 'together', cap: 'High', unc: 'Medium', con: 'Medium',
+  { id: 'forecast', short: 'Build the forecast', best: 'together', cap: 'High', unc: 'Medium', con: 'Medium',
     design: 'The computer drafts, a person checks.',
     fail: { computer: 'An AI error becomes an inventory problem.', human: 'A human error is a missed signal.', together: 'The combined workflow can catch both.' } },
-  { id: 'rival', text: 'Notice that a rival’s launch changes what history says', best: 'human', cap: 'Low', unc: 'High', con: 'Medium',
+  { id: 'decks', short: 'Decks and meetings', best: 'computer', cap: 'High', unc: 'Low', con: 'Low',
+    design: 'The computer drafts it. A person reads before it goes out.',
+    fail: { computer: 'A confident summary can carry a wrong number.', human: 'Hours go on formatting what a computer could draft.', together: 'The computer drafts, a person reads and sends.' } },
+  { id: 'review', short: 'Review and approvals', best: 'together', cap: 'Medium', unc: 'Medium', con: 'High',
+    design: 'The computer clears the routine. A person reviews the exceptions.',
+    fail: { computer: 'Approvals nobody reads become a rubber stamp.', human: 'Every item waits on the same few people.', together: 'Routine clears itself. People spend time where it matters.' } },
+  { id: 'judgment', short: 'Judgment and customers', best: 'human', cap: 'Low', unc: 'High', con: 'High',
     design: 'A person leads. The computer can flag unusual weeks.',
-    fail: { computer: 'The model sees the historical pattern and forecasts as if nothing happened.', human: 'A person notices the new event, overrides the model and reframes it.', together: 'Even better if the computer flags unusual weeks and a person decides what they mean.' } },
+    fail: { computer: 'It sees the history, not a rival launch or a chain resetting its range.', human: 'A person notices the new event, overrides the model and reframes it.', together: 'Even better if the computer flags unusual weeks and a person decides what they mean.' } },
 ];
+const LEVEL = { Low: '25%', Medium: '60%', High: '100%' };
 
-const loops = {
-  id: 'loops', title: 'The loops',
-  render(ctx) {
-    const { state, save } = ctx;
-    const root = h('div', { class: 'screen stack-l' });
-    let cur = null;
-    const paint = () => {
-      const sorts = {};
-      TASKS.forEach((t) => { if (WHO_LABEL[state.sorts && state.sorts[t.id]]) sorts[t.id] = state.sorts[t.id]; });
-      state.sorts = sorts;
-      state.sorted = TASKS.every((t) => sorts[t.id]);
-      if (cur === null) cur = state.sorted ? TASKS.length : TASKS.findIndex((t) => !sorts[t.id]);
-      const t = TASKS[cur];
-      let job;
-      if (!t) {
-        job = h('div', { class: 'stack-s reveal' },
-          h('h3', { class: 'h3' }, 'The right workflow depends on three things, not one.'),
-          table(['Job', 'Computer can', 'Uncertainty', 'Cost of a mistake', 'Usual design'],
-            TASKS.map((x) => [x.text, x.cap, x.unc, x.con, x.design])),
-          h('p', { class: 'small' }, 'Capability, uncertainty and consequence set the workflow. Context can change any of these answers, so treat them as a starting design, not a rule.'));
-      } else if (!sorts[t.id]) {
-        job = h('div', { class: 'stack-s' }, h('div', { class: 'micro' }, `Job ${cur + 1} of ${TASKS.length}`),
-          h('div', { class: 'belief' }, h('p', { class: 'belief-q' }, t.text), h('p', { class: 'small' }, 'Who should do this?'),
-            seg(WHO, null, (id) => { sorts[t.id] = id; state.sorts = sorts; save(); paint(); })));
-      } else {
-        const mine = sorts[t.id];
-        job = h('div', { class: 'stack-s reveal' }, h('div', { class: 'micro' }, `Job ${cur + 1} of ${TASKS.length}`),
-          h('div', { class: 'belief result' }, h('p', { class: 'belief-q' }, t.text),
-            h('div', { class: 'belief-chips' }, h('span', { class: `chip ${TONE[mine]}` }, `You said: ${WHO_LABEL[mine]}`), h('span', { class: 'micro' }, `Usual design: ${t.design}`)),
-            h('h4', { class: 'small' }, 'What happens if it goes wrong?'),
-            h('ul', { class: 'fail' }, WHO.map(([k, label]) => h('li', { class: k === mine ? 'mine' : '' }, h('b', null, `${label}: `), t.fail[k])))),
-          h('div', null, h('button', { class: 'btn small', type: 'button', onClick: () => { cur += 1; paint(); } }, cur + 1 < TASKS.length ? 'Next job' : 'See the pattern', h('span', { 'aria-hidden': 'true' }, '→'))));
-      }
-      mount(root,
-        h('div', { class: 'stack' },
-          eyebrow(null, 'AI Decision Lab', 'for CPG leaders'),
-          h('h1', { class: 'h1 wide' }, 'Which loop is your business in?'),
-          h('p', { class: 'lede' }, 'Understand the problem deeply. Find the signal through the noise. Then build something better.')),
-        h('div', { class: 'loops' }, LOOPS.map((l) => h('div', { class: `loop ${l.id}` },
-          h('b', null, l.name),
-          h('div', { class: 'loop-path' }, l.path.flatMap((p, i) => [h('span', null, p), i < l.path.length - 1 ? h('i', { 'aria-hidden': 'true' }, '→') : null])),
-          h('p', { class: 'small' }, l.line)))),
-        h('div', { class: 'stack-s' },
-          h('p', { class: 'small' }, 'Which is closer to your organization?'),
-          seg([['activity', 'Mostly activity'], ['both', 'Both'], ['learning', 'Mostly learning']], state.loop, (id) => { state.loop = id; save(); paint(); }),
-          state.loop ? h('p', { class: 'small reveal' }, 'Most organizations run both. AI pays off where it shortens the activity loop and speeds up the learning loop.') : null),
-        h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'Who should do each job? Then ask what happens if you get it wrong.'), job),
-        !t ? actions(ctx, { label: 'Where does the time go?' }) : null);
-      settle(root);
-    };
-    paint();
-    return root;
-  },
-};
-
-// ---------------------------------------------------------------- 2. Where does the time go?
-const SEG_COLOR = {
-  gather: 'color-mix(in srgb, var(--sys) 100%, var(--paper))', forecast: 'color-mix(in srgb, var(--sys) 60%, var(--paper))',
-  decks: 'var(--line-2)', review: 'var(--muted)', judgment: 'var(--biz)', markets: 'var(--ppl)', experiments: 'var(--accent)',
-  checking: 'repeating-linear-gradient(135deg, var(--muted) 0 4px, var(--paper) 4px 8px)',
+const TILE = {
+  gather: '#1F7A8C', forecast: '#6BAAB7', decks: '#CFCCBF', review: '#8B8F96', judgment: '#B4540F',
+  checking: '#E3B25C', markets: '#2F7357', experiments: '#2457D6',
 };
 const OUTCOME = {
   none: 'No value: the hours refill',
@@ -133,67 +68,102 @@ const OUTCOME = {
   learning: 'Learning, value not yet measured',
 };
 
-function weekBar(rows) {
-  return h('div', { class: 'wk-bar', role: 'img', 'aria-label': rows.map((r) => `${r.label} ${r.hours.toFixed(1)} hours`).join(', ') },
-    rows.map((r) => h('div', { class: 'wk-seg', style: { flex: `${r.hours} 1 0`, background: SEG_COLOR[r.id] }, title: `${r.label}: ${r.hours.toFixed(1)} h` },
-      r.hours >= 3.5 ? h('span', null, Math.round(r.hours)) : null)));
+// A week is 40 tiles, one per hour, filled down each day. A tile that straddles two jobs is split.
+function tileStyles(rows) {
+  return Array.from({ length: 40 }, (_, t) => {
+    const segs = []; let start = 0;
+    for (const r of rows) { const a = Math.max(t, start), b = Math.min(t + 1, start + r.hours); if (b - a > 1e-6) segs.push({ id: r.id, f: b - a }); start += r.hours; }
+    const main = segs.reduce((m, x) => (x.f > m.f ? x : m), segs[0]);
+    if (segs.length === 1) return { bg: TILE[main.id], id: main.id };
+    let acc = 0;
+    const stops = segs.flatMap((x) => { const from = acc * 100; acc += x.f; return [`${TILE[x.id]} ${from.toFixed(1)}%`, `${TILE[x.id]} ${(acc * 100).toFixed(1)}%`]; });
+    return { bg: `linear-gradient(180deg, ${stops.join(', ')})`, id: main.id };
+  });
+}
+
+function calendar(title, rows) {
+  const tiles = Array.from({ length: 40 }, () => h('i', { class: 'tile' }));
+  const grid = h('div', { class: 'cal-grid', role: 'img' }, tiles);
+  let prev = null, dimId = null, last = rows;
+  const paint = () => {
+    const st = tileStyles(last);
+    tiles.forEach((el, i) => {
+      el.style.background = st[i].bg;
+      if (prev && prev[i] !== st[i].bg) { el.classList.remove('swap'); void el.offsetWidth; el.style.setProperty('--d', `${(i % 8) * 18}ms`); el.classList.add('swap'); }
+      el.classList.toggle('dim', !!dimId && st[i].id !== dimId);
+    });
+    prev = st.map((x) => x.bg);
+    grid.setAttribute('aria-label', `${title}: ${last.map((r) => `${r.label || r.id} ${r.hours.toFixed(1)} hours`).join(', ')}`);
+  };
+  paint();
+  return {
+    node: h('div', { class: 'cal' }, h('div', { class: 'cal-head' }, h('span', { class: 'cal-title' }, title)),
+      h('div', { class: 'cal-days', 'aria-hidden': 'true' }, ['M', 'T', 'W', 'T', 'F'].map((d) => h('span', null, d))), grid),
+    update(rows) { last = rows; paint(); },
+    dim(id) { dimId = id; paint(); },
+  };
 }
 
 const time = {
-  id: 'time', title: 'Time and focus',
+  id: 'time', title: 'Where attention goes',
   render(ctx) {
     const { state, save } = ctx;
     const share = () => (typeof state.autoShare === 'number' ? Math.min(1, Math.max(0, state.autoShare)) : 0.6);
     const dest = () => (DEST[state.destination] ? state.destination : 'judgment');
-    const out = h('div', { class: 'stack' });
+    if (!JOBS.some((j) => j.id === state.job)) state.job = null;
+    const today = calendar('Today', WEEK.map((w) => ({ id: w.id, label: w.label, hours: w.hours })));
+    const after = calendar('With AI', weekAfter(share(), dest()));
+    const hero = h('p', { class: 'verdict' }), stats = h('div', { class: 'stats' }), fine = h('p', { class: 'small' }), keyBox = h('div', { class: 'jobs' }), card = h('div', { class: 'jobbox' });
+
+    const paintKey = () => {
+      const d = dest();
+      mount(keyBox,
+        JOBS.map((j) => h('button', { class: 'job', type: 'button', 'aria-pressed': String(state.job === j.id), onClick: () => { state.job = state.job === j.id ? null : j.id; save(); paintKey(); } }, h('i', { style: { background: TILE[j.id] } }), j.short)),
+        h('span', { class: 'job static' }, h('i', { style: { background: TILE.checking } }), 'New checking work'),
+        d === 'markets' || d === 'experiments' ? h('span', { class: 'job static' }, h('i', { style: { background: TILE[d] } }), d === 'markets' ? 'More markets' : 'New ideas') : null);
+      today.dim(state.job); after.dim(state.job);
+      const j = JOBS.find((x) => x.id === state.job);
+      mount(card, j
+        ? h('div', { class: 'jobcard reveal' },
+          h('div', { class: 'row' }, h('h3', { class: 'h3' }, WEEK.find((w) => w.id === j.id).label), h('span', { class: `chip who-${j.best}` }, `Usual design: ${WHO_LABEL[j.best]}`)),
+          h('p', { class: 'small' }, j.design),
+          h('div', { class: 'pips' }, [['Computer can', j.cap], ['Uncertainty', j.unc], ['Cost of a mistake', j.con]].map(([l, v]) => h('span', { class: 'pip' }, h('i', { style: { '--w': LEVEL[v] } }), `${l}: ${v}`))),
+          h('h4', { class: 'small' }, 'If it goes wrong'),
+          h('ul', { class: 'fail' }, WHO.map(([k, label]) => h('li', { class: k === j.best ? 'mine' : '' }, h('b', null, `${label}: `), j.fail[k]))))
+        : h('p', { class: 'micro' }, 'Tap a block to see who should do it, and what happens if it goes wrong.'));
+    };
     const paintOut = () => {
       const s0 = share(), d = dest();
-      const net = netHours(s0), gross = grossHours(s0);
-      const rg = annualRange(s0, d), a = rg.mid;
-      const rows = weekAfter(s0, d);
-      const keyRows = [...WEEK, { id: 'checking', label: 'New work: checking AI output' }, ...(d === 'markets' ? [{ id: 'markets', label: 'More brands and markets' }] : d === 'experiments' ? [{ id: 'experiments', label: 'Testing new ideas' }] : [])];
-      mount(out,
-        h('p', { class: 'verdict' }, `You just gave each planner ${hrs(net)} back, every week. What will the business do with them?`),
-        h('div', { class: 'wk' },
-          h('div', { class: 'wk-row' }, h('span', { class: 'wk-label' }, 'Today'), weekBar(WEEK.map((w) => ({ id: w.id, label: w.label, hours: w.hours })))),
-          h('div', { class: 'wk-row' }, h('span', { class: 'wk-label' }, 'With AI'), weekBar(rows))),
-        h('div', { class: 'wk-key small' }, keyRows.map((w) => h('span', null, h('i', { style: { background: SEG_COLOR[w.id] } }), w.label))),
-        h('p', { class: 'small' }, `Automation releases ${hrs(gross)} (${pc(routineShare(s0))} of the ${ROUTINE_HOURS} routine hours), less ${hrs(gross - net)} of new checking work.`),
-        h('div', { class: 'loop-path flow' }, [`Automation ${pc(s0)}`, `Hours released ${hrs(net)}`, `Redeployed: ${DEST[d].label.toLowerCase()}`, OUTCOME[DEST[d].kind]].flatMap((t, i, arr) => [h('span', null, t), i < arr.length - 1 ? h('i', { 'aria-hidden': 'true' }, '→') : null])),
-        h('div', { class: 'stats' },
-          stat('Net hours back', `${hrs(net)} a week`, `range ${hrs(rg.low.perWeek)} to ${hrs(rg.high.perWeek)}`, 'ai'),
-          stat('Capacity created', `${Math.round(a.hours).toLocaleString('en-US')} h`, `a year: ${TEAM} planners, ${WORK_WEEKS} weeks`),
-          stat(a.value ? 'At cost, up to' : 'Value', a.value ? money(a.value) : '$0', a.value ? OUTCOME[a.kind].toLowerCase() : 'the hours refill')),
-        h('p', { class: 'small' }, `Assumes ${WORK_WEEKS} working weeks, ${TEAM} planners and $${RATE} an hour fully loaded. The week itself is illustrative. Capacity is not savings, and neither is business value: those depend on what happens next. Would you still fund it at the low end (${hrs(rg.low.perWeek)} a week)?`));
+      const net = netHours(s0), gross = grossHours(s0), rg = annualRange(s0, d), a = rg.mid;
+      after.update(weekAfter(s0, d));
+      hero.textContent = `You just gave each planner ${hrs(net)} back, every week. What will the business do with them?`;
+      mount(stats,
+        stat('Net hours back', `${hrs(net)} a week`, `range ${hrs(rg.low.perWeek)} to ${hrs(rg.high.perWeek)}`, 'ai'),
+        stat('Capacity created', `${Math.round(a.hours).toLocaleString('en-US')} h`, `a year: ${TEAM} planners, ${WORK_WEEKS} weeks`),
+        stat(a.value ? 'At cost, up to' : 'Value', a.value ? money(a.value) : '$0', OUTCOME[a.kind].toLowerCase()));
+      fine.textContent = `Releases ${hrs(gross)} (${pc(routineShare(s0))} of the ${ROUTINE_HOURS} routine hours), less ${hrs(gross - net)} of new checking work. Assumes ${WORK_WEEKS} weeks, ${TEAM} planners, $${RATE} an hour; the week is illustrative. Capacity is not savings. Would you still fund it at the low end (${hrs(rg.low.perWeek)} a week)?`;
+      paintKey();
     };
-    const sl = slider({ label: 'How far to push automation', min: 0, max: 1, step: 0.1, value: share(), fmt: (v) => pc(v), hint: 'At 100% a computer takes over everything it realistically can.', onInput: (v) => { state.autoShare = v; save(); paintOut(); } });
+    const sl = slider({ label: 'How far to push automation', min: 0, max: 1, step: 0.1, value: share(), fmt: (v) => pc(v), onInput: (v) => { state.autoShare = v; save(); paintOut(); } });
     const dst = h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'Where do the freed hours go?'),
       choices({ name: 'Destination', items: DESTINATIONS.map((d) => ({ id: d.id, title: d.label, sub: d.sub })), value: dest(), onPick: (id) => { state.destination = id; save(); paintOut(); } }));
     paintOut();
     return h('div', { class: 'screen stack-l' },
-      h('div', { class: 'stack' }, ...top(2, 'biz', 'Where does the time go?',
-        'Time and focus are what a business runs short of. Here is one planner’s week. Gathering and reconciling feel like the job. They are what everyone has learned to accept.')),
-      sl, out, dst,
+      h('div', { class: 'stack' }, ...top(3, 'biz', 'Where does attention go?',
+        'Time and focus are what a business runs short of. Gathering and reconciling feel like the job.')),
+      sl, hero,
+      h('div', { class: 'stack-s' }, h('div', { class: 'cals' }, today.node, after.node), keyBox, card),
+      dst, stats, fine,
       actions(ctx, { label: 'How does the computer part learn?' }));
   },
 };
 
-// ---------------------------------------------------------------- 3. How it learns: one neuron, then more
+// ---------------------------------------------------------------- 4. How it learns: one neuron, then more
 const STEPS = 400;
 // Early steps are shown one by one (that is where the learning is), later ones in longer jumps.
 const framesFor = (steps) => { const out = []; let v = 0; while (v < steps) { out.push(Math.round(v)); v = v < 12 ? v + 1 : v * 1.12; } out.push(steps); return [...new Set(out)]; };
 const FRAMES = framesFor(STEPS);
 
-// Run `fn` once the element is mostly on screen, so nobody misses the start of a training run.
-// A polling check, not an observer: it also works when the page loads already scrolled or in a background tab.
-function whenVisible(el, fn) {
-  let t = setInterval(() => {
-    if (!el.isConnected) { clearInterval(t); return; }
-    const r = el.getBoundingClientRect();
-    if (r.height && r.top < window.innerHeight - r.height * 0.5 && r.bottom > r.height * 0.5) { clearInterval(t); fn(); }
-  }, 250);
-  return () => clearInterval(t);
-}
 
 // Stage 1: your forecasting model is one neuron, trained on the real data.
 function neuronPanel(onMore) {
@@ -260,7 +230,7 @@ function neuronPanel(onMore) {
         const slow = end > floor * 1.15;
         mount(msg, note(slow ? 'Too slow' : 'It learned', slow
           ? `Still ${(Math.sqrt(end) * 100).toFixed(1)}% when the steps ran out, against a best of ${(Math.sqrt(floor) * 100).toFixed(1)}%. It would get there, but it needs far more steps.`
-          : 'From a random start to the best this model can do, by repeating one move: measure the miss, nudge every weight to shrink it.'),
+          : 'From a random start to the best this model can do, by repeating one move: measure the miss, nudge every weight to shrink it. A company learns the same way only when the miss reaches whoever made the call.'),
           slow ? null : h('p', null, h('button', { class: 'btn small', type: 'button', onClick: onMore }, 'Try more neurons', h('span', { 'aria-hidden': 'true' }, '→'))));
       }
     }, 85);
@@ -391,7 +361,7 @@ const learn = {
       stopPanel = panel.stop;
       mount(body,
         h('div', { class: 'stack' },
-          ...top(3, 'sys', stage === 'neuron' ? 'Teach it to forecast.' : 'Now give it more neurons.',
+          ...top(4, 'sys', stage === 'neuron' ? 'Teach it to forecast.' : 'Now give it more neurons.',
             stage === 'neuron'
               ? 'One artificial neuron: inputs times weights, added up. It starts with random weights, so its first forecasts are wild. Learning is one move, repeated: predict, measure the miss, adjust the weights, try again.'
               : 'Learning is adjusting a model’s weights until its predictions become less wrong. More neurons give it more ways to bend. They do not guarantee better predictions.')),
@@ -403,7 +373,7 @@ const learn = {
   },
 };
 
-// ---------------------------------------------------------------- 4. The honest test
+// ---------------------------------------------------------------- 5. The honest test
 const SERIES = {
   actual: { name: 'Depletions (actual)', short: 'Actual', color: 'var(--s-actual)', width: 2.5 },
   current: { name: 'Today’s forecast (of shipments)', short: 'Today', color: 'var(--s-current)', dash: '5 5', width: 2 },
@@ -431,8 +401,8 @@ const test = {
     });
     return h('div', { class: 'screen stack-l' },
       h('div', { class: 'stack' },
-        ...top(4, 'sys', 'Did it beat a spreadsheet?',
-          `We kept the last ${TEST_WEEKS.length} weeks hidden from the model, then asked it, today’s method and a simple forecast with no AI to predict them. This is a back-test: a replay of history.`)),
+        ...top(5, 'sys', 'Did it beat a spreadsheet?',
+          `Today’s forecast is the organization’s belief: last year plus a little. We kept the last ${TEST_WEEKS.length} weeks hidden, then asked it, a simple forecast and the AI to predict them. This is a back-test: a replay of history.`)),
       chart,
       h('div', { class: 'stats' },
         stat('Today’s forecast', pc(ev.wapeCurrent, 1), `typical miss vs depletions. ${pc(shipMiss, 1)} against shipments, what it forecasts`),
@@ -441,66 +411,54 @@ const test = {
       h('p', { class: 'verdict' }, `Most of the gain is not AI. Forecasting depletions instead of shipments, with a trend measured from recent weeks, cuts the miss against depletions by ${Math.round(fixed * 100)}%. The AI is ${how} that.`),
       note('Where it needs a person', `The forecasting neuron did not overfit: it missed by ${pc(HISTORY().trainWape, 1)} on weeks it learned from and ${pc(HISTORY().examWape, 1)} on new ones. But it cannot see a rival launching or a chain resetting its range. A person has to, and has to be free to override it.`),
       note('How sure?', `Against the simple method the AI ${rangeText(vsSimple)}. When a range crosses zero, the data cannot tell them apart. A replay also flatters: the answers are known and nothing is at stake.`),
-      actions(ctx, { label: 'Make it stick' }));
+      actions(ctx, { label: 'Make it safe and aligned' }));
   },
 };
 
-// ---------------------------------------------------------------- 5. Make it stick
+// ---------------------------------------------------------------- 6. Safe and aligned
 const GAPS = [
-  { id: 'business', lens: 'biz', title: 'Do you know what matters?', sub: 'Everything gets measured. Not everyone agrees what drives value.',
+  { id: 'business', title: 'Do you know what matters?', sub: 'Not everyone agrees what drives value.',
     prove: 'Do the planner, sales and finance agree what a good forecast is worth, and how it is scored?' },
-  { id: 'system', lens: 'sys', title: 'Can the organization execute?', sub: 'The strategy makes sense. The processes around it do not support it.',
+  { id: 'system', title: 'Can the organization execute?', sub: 'The processes do not support the strategy.',
     prove: 'Can the data, hand-offs and tools around the forecast support using it every week?' },
-  { id: 'people', lens: 'ppl', title: 'Can people act on it?', sub: 'The answer exists. People lack the clarity, authority or incentive.',
+  { id: 'people', title: 'Can people act on it?', sub: 'They lack clarity, authority or incentive.',
     prove: 'Does the planner have the clarity, authority and incentive to act on the forecast?' },
 ];
 
-// Three lenses, and where they overlap.
+// Three lenses, and where they overlap. Name the weakest and its circle drifts away: the overlaps it
+// belongs to, and the multiplier, fade.
+const DRIFT = { business: [-34, -24], system: [34, -24], people: [0, 40] };
 function venn() {
-  const svg = s('svg', { viewBox: '0 0 300 235', class: 'venn', role: 'img', 'aria-label': 'Three overlapping circles: Business creates value, System creates leverage, People creates capability. Their overlaps are scale, capability and leadership, and the centre is the multiplier.' });
-  const circ = (cx, cy, c) => svg.append(s('circle', { cx, cy, r: 72, class: `venn-c ${c}` }));
-  circ(112, 90, 'biz'); circ(188, 90, 'sys'); circ(150, 158, 'ppl');
-  const t = (x, y, text, cls = 'venn-t') => svg.append(s('text', { x, y, class: cls, 'text-anchor': 'middle' }, text));
-  t(78, 78, 'Business'); t(78, 93, 'value', 'venn-s');
-  t(222, 78, 'System'); t(222, 93, 'leverage', 'venn-s');
-  t(150, 205, 'People'); t(150, 220, 'capability', 'venn-s');
-  t(150, 64, 'Scale', 'venn-o'); t(116, 146, 'Leader-', 'venn-o'); t(116, 157, 'ship', 'venn-o'); t(184, 146, 'Capa-', 'venn-o'); t(184, 157, 'bility', 'venn-o');
-  t(150, 116, 'The', 'venn-o'); t(150, 127, 'multiplier', 'venn-o');
-  return svg;
+  const svg = s('svg', { viewBox: '0 0 300 300', class: 'venn', role: 'img', 'aria-label': 'Three overlapping circles: Business creates value, System creates leverage, People creates capability. Their overlaps are scale, capability and leadership, and the centre is the multiplier.' });
+  const lens = {
+    business: { cx: 112, cy: 114, cls: 'biz', name: ['Business', 'value'], tx: 78, ty: 102 },
+    system: { cx: 188, cy: 114, cls: 'sys', name: ['System', 'leverage'], tx: 222, ty: 102 },
+    people: { cx: 150, cy: 182, cls: 'ppl', name: ['People', 'capability'], tx: 150, ty: 229 },
+  };
+  const groups = {};
+  for (const [id, l] of Object.entries(lens)) {
+    const c = s('circle', { cx: l.cx, cy: l.cy, r: 72, class: `venn-c ${l.cls}` });
+    const g = s('g', { class: 'venn-g' }, c, s('text', { x: l.tx, y: l.ty, class: 'venn-t', 'text-anchor': 'middle' }, l.name[0]), s('text', { x: l.tx, y: l.ty + 15, class: 'venn-s', 'text-anchor': 'middle' }, l.name[1]));
+    groups[id] = { g, c };
+    svg.append(g);
+  }
+  const labels = [
+    ['business system', ['Scale'], 150, 88], ['business people', ['Leader-', 'ship'], 116, 170],
+    ['system people', ['Capa-', 'bility'], 184, 170], ['business system people', ['The', 'multiplier'], 150, 140],
+  ].map(([needs, lines, x, y]) => {
+    const g = s('g', { class: 'venn-o' }, lines.map((t, i) => s('text', { x, y: y + i * 11, 'text-anchor': 'middle' }, t)));
+    svg.append(g);
+    return { g, needs: needs.split(' ') };
+  });
+  return {
+    node: svg,
+    set(gap) {
+      for (const [id, o] of Object.entries(groups)) { o.g.style.transform = gap === id ? `translate(${DRIFT[id][0]}px, ${DRIFT[id][1]}px)` : 'none'; o.c.classList.toggle('drift', gap === id); }
+      labels.forEach((l) => l.g.classList.toggle('faint', !!gap && l.needs.includes(gap)));
+    },
+  };
 }
 
-const stick = {
-  id: 'stick', title: 'Make it stick',
-  render(ctx) {
-    const { state, save } = ctx;
-    const root = h('div', { class: 'screen stack-l' });
-    const paint = () => {
-      const g = GAPS.find((x) => x.id === state.gap);
-      const mode = REVIEW.find((r) => r.id === (state.pilot && state.pilot.human)) || REVIEW[1];
-      mount(root,
-        h('div', { class: 'stack' }, ...top(5, 'biz', 'Make it stick.', 'The problem is rarely one lens. It is the gap between them. The details change. The friction does not.')),
-        h('div', { class: 'stick-top' },
-          h('div', { class: 'stack-s' }, venn(),
-            h('p', { class: 'small' }, 'Scale: Business plus System. Capability: System plus People. Leadership: Business plus People. The multiplier: all three aligned.')),
-          h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'Where is your gap?'),
-            choices({ name: 'Gap', items: GAPS.map((x) => ({ id: x.id, title: x.title, sub: x.sub })), value: state.gap, onPick: (id) => { state.gap = id; save(); paint(); } }),
-            g ? h('p', { class: 'small reveal' }, h('strong', null, 'Test first: '), g.prove) : null)),
-        h('div', { class: 'stack-s' },
-          h('h3', { class: 'h3' }, 'Design the review and approvals'),
-          seg(REVIEW.map((r) => [r.id, r.label]), mode.id, (id) => { state.pilot.human = id; save(); paint(); }),
-          h('div', { class: 'stats' },
-            stat('Review time today', hrs(reviewHours('review')), 'per planner, a week'),
-            stat('With this design', hrs(reviewHours(mode.id)), 'per planner, a week', 'ai')),
-          h('p', { class: 'small' }, mode.note, ' In every option the planner stays accountable.')),
-        actions(ctx, { label: 'Is it safe to try?' }));
-      settle(root);
-    };
-    paint();
-    return root;
-  },
-};
-
-// ---------------------------------------------------------------- 6. Is it safe to try?
 const ANNOUNCE = [
   { id: 'now', text: '“Everyone needs to start using AI immediately.”', hear: 'I have to prove I am using it. Admitting I do not understand it will look like incompetence.', safe: false },
   { id: 'track', text: '“Use AI wherever possible. We will track usage.”', hear: 'I am measured on how much I use it, not on whether it helps.', safe: false },
@@ -514,116 +472,181 @@ export const SAFE_QS = [
   ['workload', 'Will the time AI frees become extra workload?'],
   ['where', 'Where do I go when I do not know what to do?'],
 ];
-const ADOPT_LOOPS = [
-  { id: 'safe', name: 'Safe to try', path: ['Try', 'Fail', 'Speak up', 'Learn', 'Improve', 'Try again'], line: 'Leadership sees what is really happening.' },
-  { id: 'unsafe', name: 'Not safe to try', path: ['Try', 'Fail', 'Hide it', 'Leadership never knows', 'Repeat'], line: 'Leadership thinks AI is working.' },
-];
+
+// Problems travel up from the front line. Where it is safe to try they reach leadership. Where it is not,
+// they stop at a wall, and leadership sees only good news.
+function signalCard(kind) {
+  const svg = s('svg', { viewBox: '0 0 300 74', class: 'sig', 'aria-hidden': 'true' });
+  svg.append(s('line', { x1: 30, y1: 30, x2: 270, y2: 30, class: 'sig-line' }));
+  [[30, 'Front line'], [150, 'Managers'], [270, 'Leadership']].forEach(([x, t], i) => svg.append(s('circle', { cx: x, cy: 30, r: 11, class: `sig-node${i === 2 ? ' lead' : ''}` }), s('text', { x, y: 62, class: 'sig-text' }, t)));
+  svg.append(s('rect', { x: 196, y: 16, width: 5, height: 28, rx: 2, class: 'sig-wall' }));
+  [0, 1.2, 2.4].forEach((d) => svg.append(s('circle', { cx: 0, cy: 30, r: 4.5, class: 'sig-dot', style: { '--d': `${d}s` } })));
+  const safeCard = kind === 'safe';
+  return h('div', { class: `signal ${kind}` }, h('b', null, safeCard ? 'Safe to try' : 'Not safe to try'), svg,
+    h('p', { class: 'small' }, safeCard ? 'Leadership sees what is really happening.' : 'Leadership thinks AI is working.'));
+}
 
 const safe = {
-  id: 'safe', title: 'Safe to try',
+  id: 'safe', title: 'Safe and aligned',
   render(ctx) {
     const { state, save } = ctx;
-    const root = h('div', { class: 'screen stack-l' });
+    const v = venn(), prove = h('p', { class: 'small' }), hears = h('p', { class: 'prose' }), qs = h('div', { class: 'qchecks' }), status = h('p', { class: 'small' });
+    const cards = { safe: signalCard('safe'), unsafe: signalCard('unsafe') };
     const paint = () => {
+      if (!GAPS.some((x) => x.id === state.gap)) state.gap = null;
       if (!ANNOUNCE.some((a) => a.id === state.announce)) state.announce = null;
       state.safeAns = (Array.isArray(state.safeAns) ? state.safeAns : []).filter((id) => SAFE_QS.some(([k]) => k === id));
-      const pick = ANNOUNCE.find((a) => a.id === state.announce);
-      const yes = state.safeAns.length;
-      mount(root,
-        h('div', { class: 'stack' }, ...top(6, 'ppl', 'Is it safe to try?',
-          'Telling everyone to use AI can mean very different things to the people hearing it. What they hear decides whether they tell you what is really happening.')),
-        h('div', { class: 'stack-s' },
-          h('h3', { class: 'h3' }, 'You are the CEO. Which announcement do you make?'),
-          choices({ name: 'Announcement', items: ANNOUNCE.map((a) => ({ id: a.id, title: a.text })), value: state.announce, onPick: (id) => { state.announce = id; save(); paint(); } }),
-          pick ? h('p', { class: 'prose reveal' }, h('strong', null, 'What an employee hears: '), pick.hear) : null),
-        h('div', { class: 'loops pair' }, ADOPT_LOOPS.map((l) => h('div', { class: `loop ${l.id === 'safe' ? 'learning' : 'activity'}${pick && (pick.safe === (l.id === 'safe')) ? ' on' : ''}` },
-          h('b', null, l.name),
-          h('div', { class: 'loop-path' }, l.path.flatMap((p, i) => [h('span', null, p), i < l.path.length - 1 ? h('i', { 'aria-hidden': 'true' }, '→') : null])),
-          h('p', { class: 'small' }, l.line)))),
-        h('div', { class: 'stack-s' },
-          h('h3', { class: 'h3' }, 'Before you announce: can your people answer these today?'),
-          h('div', { class: 'qchecks' }, SAFE_QS.map(([id, q]) => {
-            const on = state.safeAns.includes(id);
-            return h('button', { class: 'qcheck', type: 'button', 'aria-pressed': String(on), onClick: () => { state.safeAns = on ? state.safeAns.filter((x) => x !== id) : [...state.safeAns, id]; save(); paint(); } }, h('i', { 'aria-hidden': 'true' }), q);
-          })),
-          h('p', { class: 'small' }, yes === SAFE_QS.length
-            ? 'All six answered. People can say “I do not know” and “I do not trust this output” without penalty.'
-            : `${yes} of ${SAFE_QS.length} answered. Each gap is a reason to wait. Telling people to use AI before answering them creates uncertainty, not adoption.`)),
-        actions(ctx, { label: 'Design the pilot' }));
-      settle(root);
+      const g = GAPS.find((x) => x.id === state.gap), pick = ANNOUNCE.find((a) => a.id === state.announce), yes = state.safeAns.length;
+      v.set(state.gap);
+      mount(prove, g ? [h('strong', null, 'Test first: '), g.prove] : '');
+      mount(hears, pick ? [h('strong', null, 'What an employee hears: '), pick.hear] : '');
+      cards.safe.classList.toggle('on', !!pick && pick.safe); cards.unsafe.classList.toggle('on', !!pick && !pick.safe);
+      mount(qs, SAFE_QS.map(([id, q]) => {
+        const on = state.safeAns.includes(id);
+        return h('button', { class: 'qcheck', type: 'button', 'aria-pressed': String(on), onClick: () => { state.safeAns = on ? state.safeAns.filter((x) => x !== id) : [...state.safeAns, id]; save(); paint(); } }, h('i', { 'aria-hidden': 'true' }), q);
+      }));
+      status.textContent = yes === SAFE_QS.length
+        ? 'All six answered. People can say “I do not know” and “I do not trust this output” without penalty.'
+        : `${yes} of ${SAFE_QS.length} answered. Each gap is a reason to wait.`;
     };
+    const gapPick = choices({ name: 'Gap', items: GAPS.map((x) => ({ id: x.id, title: x.title, sub: x.sub })), value: state.gap, onPick: (id) => { state.gap = id; save(); paint(); } });
+    const annPick = choices({ name: 'Announcement', items: ANNOUNCE.map((a) => ({ id: a.id, title: a.text })), value: state.announce, onPick: (id) => { state.announce = id; save(); paint(); } });
     paint();
-    return root;
+    return h('div', { class: 'screen stack-l' },
+      h('div', { class: 'stack' }, ...top(6, 'ppl', 'Aligned, and safe to try.',
+        'Adoption sticks where business, system and people line up, and where people can say what is not working.')),
+      h('div', { class: 'stick-top' },
+        h('div', { class: 'stack-s' }, v.node),
+        h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'Where is your weakest lens?'), gapPick, prove)),
+      h('div', { class: 'stack-s' },
+        h('h3', { class: 'h3' }, 'You are the CEO. Which announcement do you make?'), annPick, hears,
+        h('div', { class: 'signals' }, cards.safe, cards.unsafe)),
+      h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'Can your people answer these today?'), qs, status),
+      actions(ctx, { label: 'Choose what to optimize' }));
   },
 };
 
-// ---------------------------------------------------------------- 7. The pilot
+// ---------------------------------------------------------------- 7. Steer
+const MEASURES = [
+  { id: 'depletions', label: 'Depletions' },
+  { id: 'instock', label: 'In-stock through campaigns' },
+  { id: 'shipments', label: 'Shipments' },
+];
+let _dec = null;
+const measureLine = (id) => {
+  const d = (_dec ||= decompose()), a = Math.abs(d.pct).toFixed(1), b = Math.abs(d.depPct).toFixed(1);
+  if (id === 'instock') return `It would have caught the stockout on screen 2: only ${pc(runCampaign('alone').served)} of campaign demand was served when Operations set the buffer alone.`;
+  if (id === 'shipments') return `Shipments are the supplier’s own number. They fell ${a}% while depletions fell ${b}%, a gap of distributor inventory that shipments cannot see.`;
+  return `Depletions show what accounts actually take. Over the last 13 weeks shipments fell ${a}% and depletions fell ${b}%.`;
+};
+
 const TARGETS = [0.05, 0.1, 0.2];
 const WEEKS_OPT = [8, 13, 26];
 const SCOPE_SHORT = { lean: 'one distributor (12 SKU groups)', full: 'all three distributors (12 SKU groups each)' };
 const winText = (x) => `${(x * 100).toFixed(1).replace('.0', '')}%`;
 
-const pilot = {
-  id: 'pilot', title: 'The pilot',
+// Stage 1: give the departments one measure in common, and watch the pulls line up.
+function alignView(ctx, toTest) {
+  const { state, save } = ctx;
+  const fig = orgFigure(), out = h('p', { class: 'verdict' }), line = h('p', { class: 'small measure-note' });
+  const base = sumPulls(state.pulls, 0).reach;
+  const paint = () => {
+    const sm = fig.set({ pulls: state.pulls, shared: state.shared, reveal: true });
+    out.textContent = state.shared === 0
+      ? `Left alone, ${pc(base)} of the pulling reaches the star.`
+      : `With ${pc(state.shared)} of every goal shared, ${pc(sm.reach)} of the pulling reaches the star, up from ${pc(base)}.`;
+    line.textContent = measureLine(state.measure);
+  };
+  const sl = slider({ label: 'How much of every department’s goal is one shared measure', min: 0, max: 1, step: 0.2, value: state.shared, fmt: (v) => pc(v), onInput: (v) => { state.shared = v; save(); paint(); } });
+  const meas = h('div'), paintMeas = () => mount(meas, seg(MEASURES.map((m) => [m.id, m.label]), state.measure, (id) => { state.measure = id; save(); paintMeas(); paint(); }));
+  paintMeas(); paint();
+  return h('div', { class: 'stack-l' },
+    h('div', { class: 'org-split' },
+      h('div', { class: 'org-wrap' }, fig.node),
+      h('div', { class: 'stack' }, sl, out, h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'The shared measure'), meas, line))),
+    h('div', { class: 'actions' }, ctx.hasBack ? h('button', { class: 'back', type: 'button', onClick: ctx.back }, '← Back') : h('span'),
+      h('div', { class: 'actions-r' }, h('button', { class: 'btn', type: 'button', onClick: toTest }, 'Design the test', h('span', { 'aria-hidden': 'true' }, '→')))));
+}
+
+// Stage 2: test it before you scale it. Can a pilot this size tell, and what goes in the brief.
+function testView(ctx) {
+  const { state, save } = ctx;
+  const m = MODEL(), ev = EVAL();
+  const vsSimple = bootstrapReduction(ev.rows, 'simple');
+  const noAI = pairGain(m, 'current', 'simple');
+  const root = h('div', { class: 'stack-l' });
+  const paint = () => {
+    const p = state.pilot;
+    const units = SCOPES[p.scope].units, stressUnits = Math.max(1, Math.round(units / 3));
+    const sim = simulatePilot(m, p.weeks, p.target, { vs: 'simple', units });
+    const stress = simulatePilot(m, p.weeks, p.target, { vs: 'simple', units: stressUnits });
+    const canTell = stress.power >= 0.8 && stress.falseAlarm <= 0.1;
+    const above = p.target > Math.max(0, vsSimple.hi);
+    const g = GAPS.find((x) => x.id === state.gap);
+    const mode = REVIEW.find((r) => r.id === p.human) || REVIEW[1];
+    const share = typeof state.autoShare === 'number' ? state.autoShare : 0.6, dest = DEST[state.destination] ? state.destination : 'judgment';
+    const answered = Array.isArray(state.safeAns) ? state.safeAns : [], open = SAFE_QS.filter(([k]) => !answered.includes(k));
+    const maxed = p.weeks === 26 && p.scope === 'full';
+    const M = MEASURES.find((x) => x.id === state.measure) || MEASURES[0];
+    const rows = [
+      ['Shared measure', state.shared > 0 ? `${M.label}, ${pc(state.shared)} of every department’s goal. One named executive owns it across departments.` : 'Choose one first. Left alone, every department optimizes its own.'],
+      ['Do first, no AI', `Forecast depletions from weekly distributor inventory, then set shipments to that plus the inventory change you want. The back-test cut the miss from ${pc(ev.wapeCurrent, 1)} to ${pc(ev.wapeSimple, 1)}, worth ${money(noAI.lo)} to ${money(noAI.hi)} a year here.`],
+      ['Redeploy the time', DEST[dest].kind === 'none' ? 'Decide first where the freed hours go. Left alone they refill the calendar, and the value is zero.' : `${hrs(netHours(share))} a week per planner, after checking work, moved to ${DEST[dest].label.toLowerCase()}.`],
+      ['The test', `The AI cuts the typical miss in depletions by at least ${p.target * 100}% against the simple forecast, over ${p.weeks} weeks across ${SCOPE_SHORT[p.scope]}. A win beats the better baseline by ${winText(sim.passAt)}. Scale if it wins, extend if close, stop if not. Written before it starts.`],
+      ['Review', `${mode.label}: ${hrs(reviewHours(mode.id))} a week per planner, down from ${hrs(reviewHours('review'))}. The planner stays accountable.`],
+      ['Close the gap first', g ? g.prove : 'Name your weakest lens on screen 6.'],
+      ['Make it safe to try', open.length ? `Answer first: ${open.slice(0, 3).map(([, q]) => q.replace(/\?$/, '').toLowerCase()).join('; ')}${open.length > 3 ? ` and ${open.length - 3} more` : ''}. Announce it as an experiment, not a mandate.` : 'The six questions are answered. Announce it as an experiment, not a mandate.'],
+      ['Owner', 'Head of demand planning owns the scoreboard. VP of Supply Chain decides scale or stop.'],
+    ];
+    const text = `AI DECISION LAB: PILOT BRIEF\nRidgeline Bourbon, Texas (fictional)\n\n${rows.map(([t, x]) => `${t.toUpperCase()}\n${x}`).join('\n\n')}\n`;
+    const copy = h('button', { class: 'btn ghost small', type: 'button', 'aria-live': 'polite', onClick: async () => {
+      let ok = false;
+      try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {
+        try { const ta = h('textarea', { style: { position: 'fixed', opacity: '0' } }); ta.value = text; document.body.append(ta); ta.select(); ok = document.execCommand('copy'); ta.remove(); } catch (e2) { ok = false; }
+      }
+      copy.textContent = ok ? 'Copied' : 'Select the brief and copy';
+      setTimeout(() => { copy.textContent = 'Copy as text'; }, 2000);
+    } }, 'Copy as text');
+    mount(root,
+      h('div', { class: 'pilot-controls' },
+        h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'The AI will cut the miss by at least'), seg(TARGETS.map((t) => [String(t), `${t * 100}%`]), String(p.target), (v) => { p.target = +v; save(); paint(); })),
+        h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'For'), seg(WEEKS_OPT.map((w) => [String(w), `${w} weeks`]), String(p.weeks), (v) => { p.weeks = +v; save(); paint(); })),
+        h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'Across'), seg([['lean', 'One distributor'], ['full', 'All three']], p.scope, (v) => { p.scope = v; save(); paint(); })),
+        h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'Review'), seg(REVIEW.map((r) => [r.id, r.id === 'auto' ? 'Automatic' : r.label.replace('Review ', '').replace(/^./, (c) => c.toUpperCase())]), mode.id, (v) => { p.human = v; save(); paint(); }))),
+      h('div', { class: 'finding' },
+        h('p', { class: 'says' }, canTell
+          ? `This design can find out. If the gain is real it shows a win ${Math.round(stress.power * 100)}% of the time, and if the AI adds nothing it shows a false win only ${Math.round(stress.falseAlarm * 100)}% of the time.`
+          : `This design cannot reliably find out. If the gain is real it shows a win ${Math.round(stress.power * 100)}% of the time, and if the AI adds nothing it still shows one ${Math.round(stress.falseAlarm * 100)}% of the time. ${maxed ? 'Even the largest design here cannot settle it at this target: aim for a bigger effect, or accept the pilot will not decide it.' : 'Try more weeks or all three distributors.'}`),
+        h('p', { class: 'small' }, `Assumes only a third of your series are independent.${above ? ` A ${p.target * 100}% target is above the best case the replay allowed (${pc(Math.max(0, vsSimple.hi), 1)}), so read this as the chance of a win only if that gain is real.` : ''}`)),
+      h('article', { class: 'brief' },
+        h('div', { class: 'brief-head' }, h('div', null, h('div', { class: 'micro' }, 'Pilot brief'), h('h2', { class: 'h2' }, 'AI-assisted weekly depletions forecast')), copy),
+        h('dl', null, rows.flatMap(([t, x]) => [h('dt', null, t), h('dd', null, x)]))),
+      h('div', { class: 'actions' },
+        ctx.hasBack ? h('button', { class: 'back', type: 'button', onClick: ctx.back }, '← Back') : h('span'),
+        h('div', { class: 'actions-r' }, h('button', { class: 'btn ghost', type: 'button', onClick: () => ctx.go('organism') }, 'Start again'))));
+  };
+  paint();
+  return root;
+}
+
+const steer = {
+  id: 'steer', title: 'Steer',
   render(ctx) {
     const { state, save } = ctx;
-    const m = MODEL();
-    const ev = EVAL();
-    const vsSimple = bootstrapReduction(ev.rows, 'simple');
-    const noAI = pairGain(m, 'current', 'simple');
-    const root = h('div', { class: 'screen stack-l' });
+    state.shared = Number.isFinite(state.shared) ? Math.min(1, Math.max(0, Math.round(state.shared * 5) / 5)) : 0.4;
+    if (!MEASURES.some((x) => x.id === state.measure)) state.measure = 'depletions';
+    if (state.steer !== 'test') state.steer = 'align';
+    const body = h('div'), tabs = h('div');
     const paint = () => {
-      const p = state.pilot;
-      const units = SCOPES[p.scope].units, stressUnits = Math.max(1, Math.round(units / 3));
-      const sim = simulatePilot(m, p.weeks, p.target, { vs: 'simple', units });
-      const stress = simulatePilot(m, p.weeks, p.target, { vs: 'simple', units: stressUnits });
-      const canTell = stress.power >= 0.8 && stress.falseAlarm <= 0.1;
-      const above = p.target > Math.max(0, vsSimple.hi);
-      const g = GAPS.find((x) => x.id === state.gap);
-      const mode = REVIEW.find((r) => r.id === p.human) || REVIEW[1];
-      const share = typeof state.autoShare === 'number' ? state.autoShare : 0.6, dest = DEST[state.destination] ? state.destination : 'judgment';
-      const answered = Array.isArray(state.safeAns) ? state.safeAns : [], open = SAFE_QS.filter(([k]) => !answered.includes(k));
-      const maxed = p.weeks === 26 && p.scope === 'full';
-      const rows = [
-        ['Do first, no AI', `Get weekly distributor inventory. Forecast depletions, then set shipments to that plus the inventory change you want. In the back-test the miss against depletions fell from ${pc(ev.wapeCurrent, 1)} to ${pc(ev.wapeSimple, 1)}, worth ${money(noAI.lo)} to ${money(noAI.hi)} a year here.`],
-        ['Redeploy the time', DEST[dest].kind === 'none' ? 'Decide first where the freed hours go. Left alone they refill the calendar, and the value is zero.' : `${hrs(netHours(share))} a week per planner, after new checking work, moved to ${DEST[dest].label.toLowerCase()}. Capacity is not savings: it is value only once redeployed.`],
-        ['The test', `The AI cuts the typical miss in depletions by at least ${p.target * 100}% against the simple forecast, over ${p.weeks} weeks across ${SCOPE_SHORT[p.scope]}. A win beats the better baseline by ${winText(sim.passAt)}, half the target, for luck. Scale if it wins, extend 13 weeks if close, stop if not. Written before it starts.`],
-        ['Review', `${mode.label}: ${hrs(reviewHours(mode.id))} a week per planner, down from ${hrs(reviewHours('review'))}. The planner stays accountable.`],
-        ['Close the gap first', g ? g.prove : 'Pick your gap on the Make it stick screen to add it here.'],
-        ['Make it safe to try', open.length ? `Answer first: ${open.slice(0, 3).map(([, q]) => q.replace(/\?$/, '').toLowerCase()).join('; ')}${open.length > 3 ? ` and ${open.length - 3} more` : ''}. Announce it as an experiment, not a mandate.` : 'The six questions are answered. Announce it as an experiment, not a mandate.'],
-        ['Owner', 'Head of demand planning owns the scoreboard. VP of Supply Chain decides scale or stop.'],
-      ];
-      const text = `AI DECISION LAB: PILOT BRIEF\nRidgeline Bourbon, Texas (fictional)\n\n${rows.map(([t, x]) => `${t.toUpperCase()}\n${x}`).join('\n\n')}\n`;
-      const copy = h('button', { class: 'btn ghost small', type: 'button', 'aria-live': 'polite', onClick: async () => {
-        let ok = false;
-        try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {
-          try { const ta = h('textarea', { style: { position: 'fixed', opacity: '0' } }); ta.value = text; document.body.append(ta); ta.select(); ok = document.execCommand('copy'); ta.remove(); } catch (e2) { ok = false; }
-        }
-        copy.textContent = ok ? 'Copied' : 'Select the brief and copy';
-        setTimeout(() => { copy.textContent = 'Copy as text'; }, 2000);
-      } }, 'Copy as text');
-      mount(root,
-        h('div', { class: 'stack' }, ...top(7, 'biz', 'Turn the idea into an experiment.', 'Decide what you will test, and check that a test this size could tell.')),
-        h('div', { class: 'pilot-controls' },
-          h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'The AI will cut the miss by at least'), seg(TARGETS.map((t) => [String(t), `${t * 100}%`]), String(p.target), (v) => { p.target = +v; save(); paint(); })),
-          h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'For'), seg(WEEKS_OPT.map((w) => [String(w), `${w} weeks`]), String(p.weeks), (v) => { p.weeks = +v; save(); paint(); })),
-          h('div', { class: 'stack-s' }, h('h3', { class: 'h3' }, 'Across'), seg([['lean', 'One distributor'], ['full', 'All three']], p.scope, (v) => { p.scope = v; save(); paint(); }))),
-        h('div', { class: 'finding' },
-          h('p', { class: 'says' }, canTell
-            ? `This design can find out. If the gain is real it shows a win ${Math.round(stress.power * 100)}% of the time, and if the AI adds nothing it shows a false win only ${Math.round(stress.falseAlarm * 100)}% of the time.`
-            : `This design cannot reliably find out. If the gain is real it shows a win ${Math.round(stress.power * 100)}% of the time, and if the AI adds nothing it still shows one ${Math.round(stress.falseAlarm * 100)}% of the time. ${maxed ? 'Even the largest design here cannot settle it at this target: aim for a bigger effect, or accept the pilot will not decide it.' : 'Try more weeks or all three distributors.'}`),
-          h('p', { class: 'small' }, `Assumes only a third of your series are independent, since real ones share a model and a calendar.${above ? ` A ${p.target * 100}% target is above the best case the replay allowed (${pc(Math.max(0, vsSimple.hi), 1)}), so read this as the chance of a win only if that gain is real.` : ''}`)),
-        h('article', { class: 'brief' },
-          h('div', { class: 'brief-head' }, h('div', null, h('div', { class: 'micro' }, 'Pilot brief'), h('h2', { class: 'h2' }, 'AI-assisted weekly depletions forecast')), copy),
-          h('dl', null, rows.flatMap(([t, x]) => [h('dt', null, t), h('dd', null, x)]))),
-        h('div', { class: 'actions' },
-          ctx.hasBack ? h('button', { class: 'back', type: 'button', onClick: ctx.back }, '← Back') : h('span'),
-          h('div', { class: 'actions-r' }, h('button', { class: 'btn ghost', type: 'button', onClick: () => ctx.go('loops') }, 'Start again'))));
-      settle(root);
+      mount(tabs, seg([['align', 'What to optimize'], ['test', 'How to test it']], state.steer, (id) => { state.steer = id; save(); paint(); }));
+      mount(body, state.steer === 'test' ? testView(ctx) : alignView(ctx, () => { state.steer = 'test'; save(); paint(); window.scrollTo({ top: 0, behavior: 'instant' }); }));
     };
     paint();
-    return root;
+    return h('div', { class: 'screen stack-l' },
+      h('div', { class: 'stack' }, ...top(7, 'biz', 'Choose what the whole company optimizes.',
+        'Give every department a shared measure and the pulls line up. Then test it before you scale it.')),
+      tabs, body);
   },
 };
 
-export const screens = [loops, time, learn, test, stick, safe, pilot];
+export const screens = [organism, campaign, time, learn, test, safe, steer];

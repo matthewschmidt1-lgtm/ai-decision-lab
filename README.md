@@ -1,22 +1,22 @@
 # AI Decision Lab
 
-An interactive lab for CPG leaders, built on one foundation: running a business is a mix of work that humans do better and work that computers do better, and time and focus are what it runs short of. AI pays off when it moves hours from routine work to judgment, and it only sticks when strategy, systems and people line up.
+An interactive lab for CPG leaders, built on one thesis: **people choose what their own departments optimize, the organization is the sum of all those results, and AI shows what it is actually optimizing.**
+
+A company behaves like one living model: data, representations, weights, attention, a loss function, and learning. Each department is its own loss function, and nobody owns the sum. Effort cancels, signals decay on the way up, and the organization gets in its own way. AI's job is to read the whole organism, show what it is really optimizing, give time and focus back to judgment, and help people choose one shared measure.
 
 > AI is not the product. Better decisions are.
 
 ## The experience (seven screens, about twelve minutes)
 
-1. **Which loop are you in?** The activity loop (data, spreadsheet, deck, meeting, "can you cut it another way?", spreadsheet) against the learning loop. Then five jobs, one at a time: who should do it, and what happens if each of human, computer and together gets it wrong. The right workflow depends on capability, uncertainty and the cost of a mistake.
-2. **Where does the time go?** One planner's week (an illustrative assumption). Slide how far to push automation and choose where the freed hours go. The arithmetic reconciles on the page, automation creates new checking work, the estimate is a range, and capacity is not savings: hours that go nowhere in particular are worth nothing.
-3. **How it learns.** A real training run in your browser: one neuron on the forecast data (one example week, one round of learning), then a small neural network on a made-up discount curve, with training error against test error for one, three and twelve neurons.
-4. **The honest test.** Today's forecast against a simple no-AI forecast and the AI, on weeks the model never saw, and what still needs a person.
-5. **Make it stick.** The three lenses (Business creates value, System creates leverage, People creates capability), where they overlap (scale, capability, leadership, the multiplier), and the gap between them. Then design the review and approvals.
-6. **Is it safe to try?** Which announcement would you make as CEO, what each makes an employee hear, the safe and unsafe adoption loops, and six questions people must be able to answer before you announce.
-7. **The pilot.** A target, length and scope, a check that a test that size could tell, and a copyable brief.
+1. **The organism.** Four departments, each pulling toward its own goal, and the mantra everyone repeats: *Beat the market*. Drag how hard each pulls. Ask the AI what the company is really optimizing and watch the sum of the pulls draw in.
+2. **The campaign.** Marketing launches a big campaign. Operations is measured on lean stock. Watch the shelf run empty at the peak, then a glut. Compare three ways to set the buffer: Operations alone, the plan trusted at face value, and an AI that reads how past campaigns landed.
+3. **Where attention goes.** One planner's week as a calendar of 40 tiles. Push automation and watch hours return, choose where they go, and open any block to see who should do it and what happens if a human, a computer, or both get it wrong. Capacity is not savings.
+4. **How it learns.** A real training run in your browser: one neuron on the forecast data, then a small neural network on a made-up discount curve, with training error against test error for one, three and twelve neurons.
+5. **The honest test.** Today's forecast (the organization's belief) against a simple no-AI forecast and the AI, on weeks the model never saw, and what still needs a person.
+6. **Aligned, and safe to try.** The three lenses and where they overlap (scale, capability, leadership, the multiplier); name the weakest and it drifts away. Then psychological safety: which announcement would you make, and do problems reach leadership or stop at a wall?
+7. **Steer.** Give every department a share of one common measure and watch the pulls line up. Then design the pilot: a target, length and scope, a check that a test that size could tell, and a copyable brief.
 
 Shipments are product the brand ships to distributors. Depletions are what distributors sell to on- and off-premise accounts. Sell-through is consumers buying at retail; the lab has no data for it.
-
-Three lenses run through it: **Business** (does it create value?), **System** (can it work?), **People** (will they use it?).
 
 ## Run it
 
@@ -30,6 +30,6 @@ Open http://localhost:4180. Model tests: http://localhost:4180/tests/run.html.
 
 ## What is real and what is fictional
 
-The brand, distributors, people and every number in the data are fictional, generated deterministically so everyone sees the same thing. The model is not fictional: weights are learned by gradient descent on the page, the exam weeks are never seen in training or used to make choices, every input is knowable four weeks ahead, and the code on the "math and code" screen is printed from the functions that are running.
+The brand, distributors, people and every number in the data are fictional, generated deterministically so everyone sees the same thing. The department pulls and the campaign are labelled illustrations with real arithmetic: the pulls add as vectors, and the stock simulation conserves units. The models are not fictional: weights are learned by gradient descent on the page, the exam weeks are never seen in training or used to make choices, and every input is knowable four weeks ahead.
 
 See [CLAUDE.md](CLAUDE.md) for the design principles, constraints and the story's moving parts.

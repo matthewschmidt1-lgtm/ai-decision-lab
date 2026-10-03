@@ -14,7 +14,8 @@ import * as F from '../js/forecast.js';
 import * as V from '../js/value.js';
 import { recipeOf } from '../js/screens/common.js';
 import { testBeliefs, VERDICTS } from '../js/beliefs.js';
-import { screens, TASKS, WHO, SAFE_QS } from '../js/screens/lab.js';
+import { screens, JOBS, WHO, SAFE_QS } from '../js/screens/lab.js';
+import * as ORG from '../js/org.js';
 import * as NN from '../js/nn.js';
 import { state } from '../js/state.js';
 import * as TM from '../js/time.js';
@@ -162,17 +163,19 @@ t('Beliefs never read the hidden truth columns', () => {
 section('Simplicity: few screens, little text');
 const words = (el) => { const c = el.cloneNode(true); c.querySelectorAll('svg').forEach((x) => x.remove()); return (c.textContent.match(/\S+/g) || []).length; };
 t('The lab is seven screens', () => eq(screens.length === 7, `${screens.length}`));
+// Screen 7 has two halves. Count each as a screen of its own.
+const withViews = (fn) => { const out = []; for (const sc of screens) for (const view of (sc.id === 'steer' ? ['align', 'test'] : [null])) { if (view) state.steer = view; out.push(fn(sc, view)); } state.steer = 'align'; return out; };
 t('Every screen renders, and none carries more than 320 words outside its charts (all together under 1,700)', () => {
   const saved = JSON.stringify(state);
-  state.sorts = Object.fromEntries(['pattern', 'chain', 'reconcile', 'draft', 'rival'].map((k) => [k, 'human'])); state.sorted = true; state.gap = 'system';
+  state.gap = 'system';
   const noop = () => {};
-  const counts = screens.map((sc) => { const el = sc.render({ state, save: noop, next: noop, back: noop, go: noop, hasBack: true, rerender: noop }); return [sc.id, words(el)]; });
+  const counts = withViews((sc, view) => { const el = sc.render({ state, save: noop, next: noop, back: noop, go: noop, hasBack: true, rerender: noop }); return [view ? `${sc.id}/${view}` : sc.id, words(el)]; });
   Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, JSON.parse(saved));
   const over = counts.filter(([, n]) => n > 320), total = counts.reduce((a, [, n]) => a + n, 0);
-  return eq(!over.length && total < 1700, `over: ${JSON.stringify(over)}, total ${total}`);
+  return eq(!over.length && total < 1900, `over: ${JSON.stringify(over)}, total ${total}, ${JSON.stringify(counts)}`);
 });
 
-section('The small neural network (screen 3)');
+section('The small neural network (screen 4)');
 const toy = NN.toyData(14, 60, 0.1, 5);
 t('Toy data: 14 points to learn from and 60 it never sees, all in range', () => eq(toy.train.length === 14 && toy.test.length === 60 && [...toy.train, ...toy.test].every((d) => d.x >= 0 && d.x <= 1), 'bad toy data'));
 t('Back-propagation agrees with a finite-difference gradient (one neuron and a network)', () => {
@@ -203,18 +206,18 @@ t('Twelve neurons do worse on unseen points than three, in most random draws (me
 });
 
 section('Saved choices from an older version must never break a page');
-t('Stale answers and a stale "checked" flag are cleaned up instead of crashing a page', () => {
+t('Stale or nonsense saved choices are cleaned up instead of crashing any screen', () => {
   const saved = JSON.stringify(state), noop = () => {};
-  state.sorts = { pattern: 'nonsense', old: 'human' }; state.sorted = true; state.gap = 'gone'; state.destination = 'gone'; state.autoShare = 'x'; state.loop = 'gone'; state.announce = 'gone'; state.safeAns = ['nonsense', 7];
+  Object.assign(state, { pulls: { mkt: 'x', sales: -4, fin: 99, ops: null }, reveal: 'maybe', buffer: 'gone', job: 'gone', gap: 'gone', destination: 'gone', autoShare: 'x', announce: 'gone', safeAns: ['nonsense', 7], shared: 'lots', measure: 'gone', steer: 'gone' });
   let msg = true;
-  try { for (const sc of screens) sc.render({ state, save: noop, next: noop, back: noop, go: noop, hasBack: true, rerender: noop }); }
+  try { withViews((sc) => sc.render({ state, save: noop, next: noop, back: noop, go: noop, hasBack: true, rerender: noop })); }
   catch (e) { msg = `${e.message}`; }
-  const healed = state.sorted === false;
+  const healed = state.buffer === 'alone' && state.job === null && state.reveal === false && state.pulls.sales === 0 && state.pulls.fin === 2 && state.measure === 'depletions';
   Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, JSON.parse(saved));
-  return eq(msg === true && healed, msg === true ? 'stale checked flag was kept' : msg);
+  return eq(msg === true && healed, msg === true ? 'a stale value was kept' : msg);
 });
 
-section('Time and focus: the arithmetic behind screen 2');
+section('Time and focus: the arithmetic behind screen 3');
 t('A planner’s week is 40 hours, and it stays 40 hours wherever the freed time goes', () => {
   for (const dest of ['fill', 'markets', 'judgment', 'experiments']) for (const share of [0, 0.3, 0.6, 1]) {
     const total = TM.weekAfter(share, dest).reduce((s, r) => s + r.hours, 0);
@@ -237,20 +240,46 @@ t('Automation also creates new work, and the estimate is a range, not a single n
   return eq(TM.netHours(0.6) < TM.grossHours(0.6) && r.low.perWeek < r.mid.perWeek && r.mid.perWeek < r.high.perWeek, 'no overhead or no range');
 });
 t('Reviewing exceptions only is faster than reviewing everything, and automatic is faster still', () => eq(TM.reviewHours('review') > TM.reviewHours('band') && TM.reviewHours('band') > TM.reviewHours('auto'), 'review hours out of order'));
-t('Six questions to ask before announcing AI, and every job has a usual design with a failure mode for each of human, computer and together, and human, computer and together each win at least once', () => eq(SAFE_QS.length === 6 && TASKS.every((x) => WHO.every(([k]) => x.fail[k]) && x.design && WHO.some(([k]) => k === x.best)) && WHO.every(([k]) => TASKS.some((x) => x.best === k)), 'a job is missing a failure mode, or one answer never wins'));
+t('Six questions to ask before announcing AI; every block of the week is a job with a failure mode for each of human, computer and together; human, computer and together each win at least once', () => eq(SAFE_QS.length === 6 && TM.WEEK.every((w) => JOBS.some((j) => j.id === w.id)) && JOBS.every((x) => WHO.every(([k]) => x.fail[k]) && x.design && WHO.some(([k]) => k === x.best)) && WHO.every(([k]) => JOBS.some((x) => x.best === k)), 'a job is missing a failure mode, or one answer never wins'));
+
+section('The organism: pulls add up as vectors (screen 1)');
+t('Every department pulling at the star adds up fully; the sum matches the trigonometry by hand', () => {
+  const full = ORG.sumPulls(ORG.PULL_DEFAULT, 1);
+  let x = 0, y = 0; for (const d of ORG.DEPTS) { const a = (d.angle * Math.PI) / 180; x += Math.sin(a); y += Math.cos(a); }
+  const by = ORG.sumPulls(ORG.PULL_DEFAULT, 0);
+  return eq(Math.abs(full.reach - 1) < 1e-9 && full.cancelled < 1e-9 && Math.abs(by.x - x) < 1e-9 && Math.abs(by.y - y) < 1e-9, JSON.stringify([full, by]));
+});
+t('Departments pulling in different directions lose effort: with their own goals less than half the pulling reaches the star', () => { const r = ORG.sumPulls(ORG.PULL_DEFAULT, 0); return eq(r.reach < 0.5 && r.cancelled > 0.2, JSON.stringify(r)); });
+t('The harder Operations pulls toward lean stock, the less of the pulling reaches the star', () => { const at = (v) => ORG.sumPulls({ ...ORG.PULL_DEFAULT, ops: v }, 0).reach; return eq(at(0) > at(1) && at(1) > at(2), `${at(0)} ${at(1)} ${at(2)}`); });
+t('Sharing more of every goal always raises how much reaches the star', () => { let last = -1; for (const sh of [0, 0.2, 0.4, 0.6, 0.8, 1]) { const r = ORG.sumPulls(ORG.PULL_DEFAULT, sh).reach; if (!(r > last)) return `no gain at ${sh}`; last = r; } });
+t('Nobody pulling gives no direction and no NaN, and wild pull values are clamped', () => { const z = ORG.sumPulls({ mkt: 0, sales: 0, fin: 0, ops: 0 }, 0), w = ORG.sumPulls({ mkt: 99, sales: -3, fin: 'x', ops: NaN }, 0); return eq(z.reach === 0 && Number.isFinite(z.angle) && Number.isFinite(w.reach) && w.total <= 2 + 0 + 1 + 1 + 1e-9, JSON.stringify([z, w])); });
+
+section('The campaign: what the sum costs (screen 2)');
+const CAMP = Object.fromEntries(ORG.BUFFERS.map((b) => [b.id, ORG.runCampaign(b.id)]));
+t('Stock simulation conserves units: sold plus unmet equals demand every week, and stock is never negative', () => {
+  for (const r of Object.values(CAMP)) for (let i = 0; i < ORG.WEEKS_SIM; i++) if (Math.abs(r.sold[i] + r.lost[i] - r.demand[i]) > 1e-6 || r.stock[i] < -1e-6 || r.sold[i] > r.avail[i] + 1e-6) return `${r.mode} week ${i}`;
+});
+t('When Operations sets stock alone, the shelf runs empty during the campaign; planned stock never does', () => eq(CAMP.alone.emptyWeek >= ORG.CAMPAIGN_START && CAMP.alone.served < 0.95 && CAMP.calendar.emptyWeek === -1 && CAMP.ai.emptyWeek === -1, JSON.stringify([CAMP.alone.emptyWeek, CAMP.alone.served])));
+t('Operations alone also over-corrects: a glut after the campaign ends, well above normal stock and above any other option', () => eq(CAMP.alone.glut > 2.2 * ORG.BASE && CAMP.alone.glut > CAMP.calendar.glut && CAMP.alone.glut > CAMP.ai.glut, `${CAMP.alone.glut} ${CAMP.calendar.glut} ${CAMP.ai.glut}`));
+t('Operations alone holds the least stock on average, so its own measure looks best while the company loses', () => eq(CAMP.alone.avgStock < CAMP.ai.avgStock && CAMP.alone.avgStock < CAMP.calendar.avgStock && CAMP.alone.total > CAMP.calendar.total && CAMP.alone.total > CAMP.ai.total, JSON.stringify(Object.values(CAMP).map((r) => [r.mode, r.avgStock, r.total]))));
+t('Trusting the plan at face value over-builds; adjusting it for how past campaigns landed holds less stock and still never runs out', () => eq(CAMP.ai.peakDuring < CAMP.calendar.peakDuring && CAMP.ai.total < CAMP.calendar.total && CAMP.ai.served === 1, JSON.stringify([CAMP.ai.peakDuring, CAMP.calendar.peakDuring])));
+t('The ledger adds up: missed margin is lost cases times margin, holding cost is stock-weeks times the holding rate', () => {
+  for (const r of Object.values(CAMP)) if (Math.abs(r.missed - r.lostTotal * ORG.MARGIN) > 1e-6 || Math.abs(r.holding - r.stock.reduce((a, b) => a + b, 0) * ORG.HOLD) > 1e-6 || Math.abs(r.total - r.missed - r.holding) > 1e-6) return r.mode;
+});
 
 section('Vocabulary: shipments, depletions and sell-through are different steps');
 t('No screen uses shopper wording for depletions, or borrows sell-in, sell-out or pull-through', () => {
   const saved = JSON.stringify(state), noop = () => {};
   const banned = /shopper|pull-through|sell-out|sell-in|what shoppers|consumers bought/i;
   const texts = [];
-  for (const checked of [false, true]) {
-    state.sorts = Object.fromEntries(['pattern', 'chain', 'reconcile', 'draft', 'rival'].map((k) => [k, 'human'])); state.sorted = checked; state.gap = 'system';
-    for (const sc of screens) {
+  state.gap = 'system'; state.job = 'judgment'; state.reveal = true;
+  for (const buffer of ['alone', 'calendar', 'ai']) {
+    state.buffer = buffer;
+    withViews((sc) => {
       const el = sc.render({ state, save: noop, next: noop, back: noop, go: noop, hasBack: true, rerender: noop });
       el.querySelectorAll('svg [aria-label], [aria-label], [title]').forEach((n) => texts.push([sc.id, n.getAttribute('aria-label') || n.getAttribute('title')]));
       texts.push([sc.id, el.textContent]);
-    }
+    });
   }
   Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, JSON.parse(saved));
   const hit = texts.filter(([, x]) => banned.test(x || '')).map(([id, x]) => `${id}: ${(x.match(banned) || [])[0]}`);

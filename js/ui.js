@@ -113,112 +113,17 @@ export function note(label, ...kids) {
   return h('div', { class: 'note' }, h('div', { class: 'note-label' }, label), h('div', { class: 'note-body' }, ...kids));
 }
 
-// A term the learner has just earned a reason to care about.
-export function term(name, def) {
-  return h('div', { class: 'term' }, h('span', { class: 'term-name' }, name), h('span', { class: 'term-def' }, def));
-}
-
-export function disclose(summary, ...kids) {
-  return h('details', { class: 'disclose' }, h('summary', null, summary), h('div', { class: 'disclose-body' }, ...kids));
-}
-
-export function table(head, rows, { num = [] } = {}) {
-  return h('table', { class: 'tbl' },
-    h('thead', null, h('tr', null, head.map((c, i) => h('th', { class: num.includes(i) ? 'num r' : '' }, c)))),
-    h('tbody', null, rows.map((r) => h('tr', null, r.map((c, i) => h('td', { class: num.includes(i) ? 'num r' : '' }, c))))));
-}
-
-
-// A waterfall: each step floats from where the last one ended, so the learner watches the total
-// being built. Rows: { label, value, tag, mark, color } float; { total: true } anchors at zero;
-// { header } is a group label; { split: [{value, color, label}] } is one bar cut into parts.
-export function waterfall({ rows, fmt = (v) => signed(v, 1), min, max, ghost = null }) {
-  const base = min != null && min > 0 ? min : 0;
-  let run = 0, lo = base, hi = base;
-  const laid = rows.map((r) => {
-    if (r.header || r.split) { const t = r.split ? r.split.reduce((a, p) => a + p.value, 0) : 0; if (r.split) { lo = Math.min(lo, t); hi = Math.max(hi, t); } return { ...r, from: base, to: r.split ? t : base }; }
-    if (r.total) { run = r.value; lo = Math.min(lo, run); hi = Math.max(hi, run); return { ...r, from: base, to: run }; }
-    const from = run; run += r.value; lo = Math.min(lo, run); hi = Math.max(hi, run);
-    return { ...r, from, to: run };
-  });
-  lo = min ?? lo; hi = max ?? hi;
-  const span = (hi - lo) || 1, pos = (v) => `${((v - lo) / span) * 100}%`;
-  const root = h('div', { class: 'wf', style: { '--zero': pos(base) } });
-  laid.forEach((r, i) => {
-    if (r.header) { root.append(h('div', { class: 'wf-head' }, h('span', null, r.header), r.note ? h('span', { class: 'num' }, r.note) : null)); return; }
-    const a = Math.min(r.from, r.to), b = Math.max(r.from, r.to);
-    let fills;
-    if (r.split) {
-      let acc = 0;
-      fills = r.split.map((p) => { const f = h('i', { class: 'wf-bar', style: { left: pos(Math.min(acc, acc + p.value)), width: `${(Math.abs(p.value) / span) * 100}%`, background: p.color, animationDelay: `${i * 70}ms` } }); acc += p.value; return f; });
-    } else {
-      fills = [h('i', { class: `wf-bar${r.total ? ' total' : r.value < 0 ? ' neg' : ' pos'}`, style: { left: pos(a), width: `${Math.max(((b - a) / span) * 100, 0.6)}%`, background: r.color || null, animationDelay: `${i * 70}ms` } })];
-    }
-    root.append(h('div', { class: `bar-row wf-row${r.mark ? ' mark' : ''}${r.total ? ' wf-total' : ''}` },
-      h('div', { class: 'bar-label' }, r.label, r.tag ? h('span', { class: 'bar-tag' }, r.tag) : null),
-      h('div', { class: 'bar-track wf-track' }, fills, ghost && r.total && i === laid.length - 1 ? h('i', { class: 'wf-ghost', style: { left: pos(ghost.value) }, title: ghost.label }) : null),
-      h('div', { class: 'bar-val num' }, r.shown ?? (r.split ? fmt(r.to) : fmt(r.value)))));
-  });
-  return root;
-}
-
-// A range for each item, with a marker for the base case: the tornado for "what matters most".
-export function rangeBars({ items, base = 0, fmt = (v) => String(v) }) {
-  const lo = Math.min(base, ...items.map((i) => i.low)), hi = Math.max(base, 0, ...items.map((i) => i.high));
-  const span = (hi - lo) || 1, pos = (v) => `${((v - lo) / span) * 100}%`;
-  const root = h('div', { class: 'wf rb', style: { '--zero': pos(0), '--base': pos(base) } });
-  items.forEach((it) => {
-    root.append(h('div', { class: 'bar-row wf-row' },
-      h('div', { class: 'bar-label' }, it.label),
-      h('div', { class: 'bar-track wf-track' },
-        h('i', { class: 'wf-bar range', style: { left: pos(it.low), width: `${((it.high - it.low) / span) * 100}%` } }),
-        h('i', { class: 'wf-base' })),
-      h('div', { class: 'bar-val num' }, `${fmt(it.low)} to ${fmt(it.high)}`)));
-  });
-  return root;
-}
-
-// A chain of stages joined by a line. A stage that is a gap breaks the line. The stage the learner is
-// worried about is lit, and what it means for the pilot appears beside it.
-export function chain(nodes, { active = null } = {}) {
-  const root = h('ol', { class: 'chain' });
-  nodes.forEach((n) => {
-    root.append(h('li', { class: `chain-node${n.id === active ? ' active' : ''}`, 'data-tone': n.tone || 'unknown' },
-      h('span', { class: 'chain-dot' }),
-      h('span', { class: 'chain-name' }, n.name),
-      h('span', { class: 'chain-detail' }, n.detail),
-      h('span', { class: 'chip', 'data-tone': n.tone || 'unknown' }, n.status)));
-  });
-  return root;
-}
-
-// A dot plot: one row per case, one dot per method, on a shared axis. Good for "who wins, each time".
-export function dotPlot({ rows, fmt = (v) => `${(v * 100).toFixed(1)}%`, legend }) {
-  const all = rows.flatMap((r) => r.points.map((p) => p.v));
-  const lo = 0, hi = Math.max(...all) * 1.12, pos = (v) => `${((v - lo) / (hi - lo)) * 100}%`;
-  const root = h('div', { class: 'dots' });
-  if (legend) root.append(h('div', { class: 'dots-legend' }, legend.map((l) => h('span', { class: 'legend-item' }, h('i', { style: { background: l.color, borderColor: l.color } }), l.name))));
-  rows.forEach((r) => {
-    const best = r.points.reduce((a, p) => (p.v < a.v ? p : a), r.points[0]);
-    root.append(h('div', { class: 'dots-row' },
-      h('div', { class: 'dots-label' }, r.label, r.sub ? h('span', { class: 'bar-tag' }, r.sub) : null),
-      h('div', { class: 'dots-track' }, r.points.map((p) => h('i', { class: `dots-dot${p === best ? ' best' : ''}`, style: { left: pos(p.v), background: p.color }, title: `${p.name}: ${fmt(p.v)}` }))),
-      h('div', { class: 'dots-best num' }, `${best.name} ${fmt(best.v)}`)));
-  });
-  return root;
-}
-
 export const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// Round parts to whole numbers so that they still add up to the rounded total.
-export function roundParts(values, total) {
-  const target = Math.round(total);
-  const floors = values.map(Math.floor);
-  let rest = target - floors.reduce((a, b) => a + b, 0);
-  const order = values.map((v, i) => [v - Math.floor(v), i]).sort((a, b) => b[0] - a[0]);
-  const out = floors.slice();
-  for (const [, i] of order) { if (rest <= 0) break; out[i]++; rest--; }
-  return out;
+// Run `fn` once the element is mostly on screen, so nobody misses the start of an animation.
+// A polling check, not an observer: it also works when the page loads already scrolled or in a background tab.
+export function whenVisible(el, fn) {
+  const t = setInterval(() => {
+    if (!el.isConnected) { clearInterval(t); return; }
+    const r = el.getBoundingClientRect();
+    if (r.height && r.top < window.innerHeight - r.height * 0.5 && r.bottom > r.height * 0.5) { clearInterval(t); fn(); }
+  }, 250);
+  return () => clearInterval(t);
 }
 
 // A segmented control: one of a few short choices, always visible.
