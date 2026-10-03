@@ -114,6 +114,47 @@
 .wv-ring { fill: none; stroke: var(--ink-2); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: wv-ring 1.2s ease-out both; }
 @keyframes wv-ring { from { opacity: 0.5; transform: scale(1); } to { opacity: 0; transform: scale(3); } }
 
+/* ---------- 4. Mirrors and one lens ---------- */
+.mirror { position: relative; display: grid; gap: 54px; padding: 4px 12px 34px; }
+.mchain { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; position: relative; z-index: 1; }
+.mlink { display: grid; justify-items: center; gap: 7px; text-align: center; font: 600 clamp(8.5px, 2.1vw, 12.5px)/1.2 var(--font); color: var(--ink-2); }
+.mdot { position: relative; width: 22px; height: 22px; border-radius: 50%; background: var(--line-2); transition: background 400ms, transform 400ms var(--ease); }
+.mdot::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--paper); transition: background 400ms; }
+.mlink.dark .mdot { background: none; box-shadow: inset 0 0 0 2px var(--line-2); }
+.mlink.dark .mdot::after { background: none; }
+.mlink.dark { color: var(--muted); }
+.mirror[data-mode="system"] .mlink .mdot { background: var(--accent) !important; }
+.mirror[data-mode="system"] .mlink .mdot::after { background: var(--paper); }
+.mirror[data-mode="system"] .mlink.dark .mdot { box-shadow: none; }
+.mlink.lit .mdot { transform: scale(1.25); }
+.mlink.lit { color: var(--ink); }
+.mdepts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; position: relative; z-index: 1; }
+.mdept { background: var(--paper); border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--line); border-top: 3px solid var(--c); padding: 12px 10px 14px; display: grid; gap: 6px; justify-items: center; text-align: center; align-content: start; transition: opacity 600ms; }
+.mdept b { font: 650 0.95rem var(--font-display); color: var(--c); letter-spacing: -0.01em; }
+.mquote { font-size: clamp(11.5px, 1.5vw, 0.84rem); line-height: 1.4; color: var(--ink-2); transition: opacity 600ms; }
+.mloop { width: 46px; height: 46px; animation: mloop 3.2s linear infinite; transition: opacity 600ms; }
+.mloop-ring { fill: none; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 78 29; }
+.mirror[data-mode="system"] .mloop { opacity: 0.22; animation-duration: 14s; }
+.mirror[data-mode="system"] .mquote { opacity: 0.55; }
+@keyframes mloop { to { transform: rotate(360deg); } }
+.moverlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 0; }
+.mspine { stroke: var(--line-2); stroke-width: 2; }
+.mbeam { fill: none; stroke-width: 1.8; stroke-dasharray: 2 6; stroke-linecap: round; opacity: 0.75; transition: opacity 600ms; }
+.mirror[data-mode="system"] .mbeam { opacity: 0; }
+.mstub { stroke-width: 2.5; stroke-linecap: round; opacity: 0; transition: opacity 800ms 500ms; }
+.mirror[data-mode="system"] .mstub { opacity: 0.8; }
+.mbig { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 2 12; opacity: 0; transition: opacity 900ms 600ms; animation: mbig 2.4s linear infinite; }
+.mirror[data-mode="system"] .mbig { opacity: 1; }
+@keyframes mbig { to { stroke-dashoffset: -28; } }
+.mlens { opacity: 0; transition: transform 1700ms cubic-bezier(0.45, 0.05, 0.3, 1), opacity 500ms; }
+.mirror[data-mode="system"] .mlens { opacity: 1; animation: mlens-out 400ms 2000ms forwards; }
+@keyframes mlens-out { to { opacity: 0; } }
+.mlens-ring { fill: var(--accent); fill-opacity: 0.1; stroke: var(--accent); stroke-width: 2; }
+.mlens-glow { fill: none; stroke: var(--accent); stroke-width: 1.5; opacity: 0.4; transform-box: fill-box; transform-origin: center; animation: mlens-glow 1.4s ease-out infinite; }
+@keyframes mlens-glow { from { transform: scale(1); opacity: 0.5; } to { transform: scale(1.9); opacity: 0; } }
+.mirror-out { max-width: var(--measure); }
+@media (max-width: 640px) { .mdepts { grid-template-columns: repeat(2, minmax(0, 1fr)); } .mirror { gap: 46px; } }
+
 /* ---------- 3. The week as a calendar ---------- */
 .cals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(16px, 4vw, 40px); }
 .cal { display: grid; gap: 8px; }
@@ -169,7 +210,7 @@ button.job[aria-pressed="true"]:hover { box-shadow: inset 0 0 0 2px var(--accent
 .measure-note { max-width: var(--measure); }
 
 @media (prefers-reduced-motion: reduce) {
-  .org-flow, .org-pulse, .camp-lost, .oos.on, .sig-dot, .tile.swap, .wv-ring { animation: none !important; }
+  .org-flow, .org-pulse, .camp-lost, .oos.on, .sig-dot, .tile.swap, .wv-ring, .mloop, .mbig, .mlens-glow { animation: none !important; }
   .sig-dot { opacity: 1; }
 }
 @media print { .org-flow, .org-pulse { animation: none !important; } }

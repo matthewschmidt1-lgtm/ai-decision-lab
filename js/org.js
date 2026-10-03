@@ -97,3 +97,29 @@ export function runCampaign(mode) {
     peakDuring: Math.max(...camp.map((t) => stock[t])),
   };
 }
+
+// ---------------------------------------------------------------- Mirrors
+// The campaign touches a chain of links. Each department's scorecard reflects only some of them, so each
+// learns from a slice. Who sees what is an illustrative assumption; what each mirror shows is computed
+// from the campaign run when Operations sets the stock alone.
+export const CHAIN = [
+  { id: 'campaign', label: 'Campaign' }, { id: 'demand', label: 'Demand' }, { id: 'orders', label: 'Orders' },
+  { id: 'inventory', label: 'Inventory' }, { id: 'production', label: 'Production' }, { id: 'margin', label: 'Margin' }, { id: 'customer', label: 'Customer' },
+];
+export const SEES = { mkt: ['campaign', 'demand'], sales: ['demand', 'orders'], ops: ['orders', 'inventory', 'production'], fin: ['inventory'] };
+export const unseenLinks = () => CHAIN.filter((c) => !DEPTS.some((d) => SEES[d.id].includes(c.id)));
+
+export function mirrorFacts() {
+  const runs = Object.fromEntries(BUFFERS.map((b) => [b.id, runCampaign(b.id)]));
+  const a = runs.alone, camp = campaignWeeks();
+  const planned = camp.reduce((acc, t) => acc + BASE * (1 + planAt(t)), 0), actual = camp.reduce((acc, t) => acc + a.demand[t], 0);
+  const all = Object.values(runs);
+  return {
+    peakLift: Math.max(...a.demand) / BASE - 1,                       // Marketing: the campaign launched and demand rose
+    forecastErr: (planned - actual) / actual,                          // Sales: the plan against what happened, over the campaign weeks
+    avgStock: a.avgStock, leanest: all.every((r) => a.avgStock <= r.avgStock),          // Operations: stock held
+    holding: a.holding, cheapest: all.every((r) => a.holding <= r.holding),             // Finance: the cost of carrying it
+    served: a.served, lost: a.lostTotal, missed: a.missed, glut: a.glut, emptyWeek: a.emptyWeek,   // the whole chain
+    total: a.total, best: Math.min(...all.map((r) => r.total)),
+  };
+}

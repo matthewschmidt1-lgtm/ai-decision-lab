@@ -165,8 +165,8 @@ section('Simplicity: few screens, little text');
 const words = (el) => { const c = el.cloneNode(true); c.querySelectorAll('svg').forEach((x) => x.remove()); return (c.textContent.match(/\S+/g) || []).length; };
 t('The lab is seven screens', () => eq(screens.length === 7, `${screens.length}`));
 // Screens 2 and 7 have two halves. Count each as a screen of its own.
-const VIEWS = { steer: ['steer', ['align', 'test']], wave: ['view', ['wave', 'campaign']] };
-const withViews = (fn) => { const out = []; for (const sc of screens) { const [key, list] = VIEWS[sc.id] || [null, [null]]; for (const view of list) { if (view) state[key] = view; out.push(fn(sc, view)); } } state.steer = 'align'; state.view = 'wave'; return out; };
+const VIEWS = { steer: ['steer', ['align', 'test']], wave: ['view', ['wave', 'campaign']], learn: ['learnView', ['neuron', 'net', 'org']] };
+const withViews = (fn) => { const out = []; for (const sc of screens) { const [key, list] = VIEWS[sc.id] || [null, [null]]; for (const view of list) { if (view) state[key] = view; out.push(fn(sc, view)); } } state.steer = 'align'; state.view = 'wave'; state.learnView = 'neuron'; return out; };
 t('Every screen renders, and none carries more than 320 words outside its charts (all together under 1,700)', () => {
   const saved = JSON.stringify(state);
   state.gap = 'system';
@@ -175,6 +175,15 @@ t('Every screen renders, and none carries more than 320 words outside its charts
   Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, JSON.parse(saved));
   const over = counts.filter(([, n]) => n > 320), total = counts.reduce((a, [, n]) => a + n, 0);
   return eq(!over.length && total < 1900, `over: ${JSON.stringify(over)}, total ${total}, ${JSON.stringify(counts)}`);
+});
+
+t('The organization view stays under the word budget in both modes, mirrors and whole chain', () => {
+  const saved = JSON.stringify(state), noop = () => {}, ctx = { state, save: noop, next: noop, back: noop, go: noop, hasBack: true, rerender: noop };
+  const learn = screens.find((x) => x.id === 'learn'), out = {};
+  state.learnView = 'org';
+  for (const m of ['local', 'system']) { state.mirror = m; out[m] = words(learn.render(ctx)); }
+  Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, JSON.parse(saved));
+  return eq(out.local <= 320 && out.system <= 320, JSON.stringify(out));
 });
 
 section('The small neural network (screen 4)');
@@ -210,11 +219,11 @@ t('Twelve neurons do worse on unseen points than three, in most random draws (me
 section('Saved choices from an older version must never break a page');
 t('Stale or nonsense saved choices are cleaned up instead of crashing any screen', () => {
   const saved = JSON.stringify(state), noop = () => {};
-  Object.assign(state, { pulls: { mkt: 'x', sales: -4, fin: 99, ops: null }, reveal: 'maybe', view: 'gone', seen: 'gone', buffer: 'gone', job: 'gone', gap: 'gone', destination: 'gone', autoShare: 'x', announce: 'gone', safeAns: ['nonsense', 7], shared: 'lots', measure: 'gone', steer: 'gone' });
+  Object.assign(state, { pulls: { mkt: 'x', sales: -4, fin: 99, ops: null }, reveal: 'maybe', view: 'gone', seen: 'gone', learnView: 'gone', mirror: 'gone', buffer: 'gone', job: 'gone', gap: 'gone', destination: 'gone', autoShare: 'x', announce: 'gone', safeAns: ['nonsense', 7], shared: 'lots', measure: 'gone', steer: 'gone' });
   let msg = true;
   try { withViews((sc) => sc.render({ state, save: noop, next: noop, back: noop, go: noop, hasBack: true, rerender: noop })); }
   catch (e) { msg = `${e.message}`; }
-  const healed = state.view === 'wave' && state.seen === 'orders' && state.buffer === 'alone' && state.job === null && state.reveal === false && state.pulls.sales === 0 && state.pulls.fin === 2 && state.measure === 'depletions';
+  const healed = state.learnView === 'neuron' && state.mirror === 'local' && state.view === 'wave' && state.seen === 'orders' && state.buffer === 'alone' && state.job === null && state.reveal === false && state.pulls.sales === 0 && state.pulls.fin === 2 && state.measure === 'depletions';
   Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, JSON.parse(saved));
   return eq(msg === true && healed, msg === true ? 'a stale value was kept' : msg);
 });
@@ -276,6 +285,12 @@ t('Nothing changes when demand does not: every layer stays exactly on its baseli
 t('Orders settle at the new level of demand at every layer, so the swing is a transient, not a drift', () => eq(BWO.layers.every((l) => Math.abs(l.orders.slice(-6).reduce((a, b) => a + b, 0) / 6 - BW.BASE_BW * (1 + BW.STEP)) < 0.5), JSON.stringify(BWO.layers.map((l) => l.orders.slice(-3)))));
 t('Sharing real demand with every layer cuts the swing at each upstream layer, and the plant by well over half', () => eq(BWS.peaks.slice(2).every((p, i) => p.abs < BWO.peaks[i + 2].abs) && BWS.peaks[4].abs < BWO.peaks[4].abs * 0.5, JSON.stringify([BWS.peaks.map((p) => p.abs), BWO.peaks.map((p) => p.abs)])));
 t('The chain is deterministic and four layers say their decision in their own words', () => eq(JSON.stringify(BW.runChain('orders')) === JSON.stringify(BWO) && BW.LAYERS.length === 4 && BW.LAYERS.every((l) => l.says.length === 2), 'not deterministic'));
+
+section('Mirrors: every department is right locally, and the whole chain still loses (screen 4)');
+const MF = ORG.mirrorFacts();
+t('Each mirror reports something true: Marketing launched and demand rose, Sales forecast within 15%, Operations held the least stock, Finance paid the least to carry it', () => eq(MF.peakLift > 0.5 && Math.abs(MF.forecastErr) < 0.15 && MF.leanest && MF.cheapest, JSON.stringify(MF)));
+t('Yet the whole chain lost: the shelf ran empty in the campaign, margin was lost, a glut followed, and a plan that read the whole chain cost much less', () => eq(MF.emptyWeek >= ORG.CAMPAIGN_START && MF.served < 0.95 && MF.missed > 0 && MF.glut > 2 * ORG.BASE && MF.best < MF.total * 0.5, JSON.stringify(MF)));
+t('No department\u2019s scorecard shows margin or the customer outcome, and every department sees at least one link', () => eq(ORG.unseenLinks().map((c) => c.id).join() === 'margin,customer' && ORG.DEPTS.every((d) => ORG.SEES[d.id].length > 0 && ORG.SEES[d.id].every((id) => ORG.CHAIN.some((c) => c.id === id))), JSON.stringify(ORG.unseenLinks())));
 
 section('Vocabulary: shipments, depletions and sell-through are different steps');
 t('No screen uses shopper wording for depletions, or borrows sell-in, sell-out or pull-through', () => {
