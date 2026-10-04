@@ -166,7 +166,7 @@ const words = (el) => { const c = el.cloneNode(true); c.querySelectorAll('svg').
 t('The lab is seven screens', () => eq(screens.length === 7, `${screens.length}`));
 // Screens 2 and 7 have two halves. Count each as a screen of its own.
 const VIEWS = { steer: ['steer', ['align', 'test']], wave: ['view', ['wave', 'campaign']], learn: ['learnView', ['neuron', 'net', 'org']] };
-const withViews = (fn) => { const out = []; for (const sc of screens) { const [key, list] = VIEWS[sc.id] || [null, [null]]; for (const view of list) { if (view) state[key] = view; out.push(fn(sc, view)); } } state.steer = 'align'; state.view = 'wave'; state.learnView = 'neuron'; return out; };
+const withViews = (fn) => { const out = []; for (const sc of screens) { const [key, list] = VIEWS[sc.id] || [null, [null]]; for (const view of list) { if (view) state[key] = view; out.push(fn(sc, view)); } } state.steer = 'align'; state.view = 'wave'; state.learnView = 'org'; return out; };
 t('Every screen renders, and none carries more than 320 words outside its charts (all together under 1,700)', () => {
   const saved = JSON.stringify(state);
   state.gap = 'system';
@@ -223,7 +223,7 @@ t('Stale or nonsense saved choices are cleaned up instead of crashing any screen
   let msg = true;
   try { withViews((sc) => sc.render({ state, save: noop, next: noop, back: noop, go: noop, hasBack: true, rerender: noop })); }
   catch (e) { msg = `${e.message}`; }
-  const healed = state.learnView === 'neuron' && state.mirror === 'local' && state.view === 'wave' && state.seen === 'orders' && state.buffer === 'alone' && state.job === null && state.reveal === false && state.pulls.sales === 0 && state.pulls.fin === 2 && state.measure === 'depletions';
+  const healed = state.learnView === 'org' && state.mirror === 'local' && state.view === 'wave' && state.seen === 'orders' && state.buffer === 'alone' && state.job === null && state.reveal === false && state.pulls.sales === 0 && state.pulls.fin === 2 && state.measure === 'depletions';
   Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, JSON.parse(saved));
   return eq(msg === true && healed, msg === true ? 'a stale value was kept' : msg);
 });

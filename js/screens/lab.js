@@ -275,7 +275,7 @@ function netDiagram(k, p) {
   return svg;
 }
 
-function netPanel(onOrg) {
+function netPanel() {
   const data = toyData(14, 60, 0.1, 5);
   const rmse = (p, pts) => Math.sqrt(mse(p, pts)) * 100;
   const finals = Object.fromEntries(NET_OPTS.map(([k]) => {
@@ -348,16 +348,18 @@ function netPanel(onOrg) {
     h('div', { class: 'net-row' }, readout, diagram),
     cmp, msg,
     h('p', { class: 'small' }, 'In most random draws of this toy, three neurons beat twelve. This draw shows it clearly. Large language models use the same broad idea, learned weights in a neural network, with transformer architectures, many layers and billions of parameters.'),
-    h('p', null, h('button', { class: 'btn small', type: 'button', onClick: onOrg }, 'Now the organization', h('span', { 'aria-hidden': 'true' }, '→'))));
+    );
   return { node, stop };
 }
 
-const LEARN_VIEWS = ['neuron', 'net', 'org'];
+const LEARN_VIEWS = ['org', 'neuron', 'net'];
 const learn = {
   id: 'learn', title: 'How it learns',
   render(ctx) {
     const { state, save } = ctx;
-    if (!LEARN_VIEWS.includes(state.learnView)) state.learnView = 'neuron';
+    // Coming to this screen always starts on the mirrors, with the camera close.
+    if (ctx.entered) { state.learnView = 'org'; state.mirror = 'local'; }
+    if (!LEARN_VIEWS.includes(state.learnView)) state.learnView = 'org';
     if (state.mirror !== 'system') state.mirror = 'local';
     let stopPanel = () => {};
     const body = h('div', { class: 'stack-l' });
@@ -370,11 +372,11 @@ const learn = {
         const m = mirrorPanel(state, save);
         const btn = h('button', { class: `btn small${state.mirror === 'system' ? ' ghost' : ''}`, type: 'button' }, state.mirror === 'system' ? 'Back to the mirrors' : 'Pull the camera back');
         btn.addEventListener('click', () => { m.set(state.mirror === 'system' ? 'local' : 'system'); btn.textContent = state.mirror === 'system' ? 'Back to the mirrors' : 'Pull the camera back'; btn.classList.toggle('ghost', state.mirror === 'system'); });
-        panel = { node: h('div', { class: 'stack-l' }, m.node, h('div', { class: 'stack-s' }, btn, m.out)), stop: m.stop };
+        panel = { node: h('div', { class: 'stack-l' }, m.node, h('div', { class: 'stack-s' }, h('div', { class: 'row' }, btn, h('button', { class: 'link', type: 'button', onClick: () => go('neuron') }, 'How a machine learns', h('span', { 'aria-hidden': 'true' }, ' →'))), m.out)), stop: m.stop };
         title = 'Four mirrors. One lens.';
         lede = 'A department learns from what its own scorecard shows. The campaign touched seven links, and no single mirror shows them all.';
       } else {
-        panel = stage === 'neuron' ? neuronPanel(() => go('net')) : netPanel(() => go('org'));
+        panel = stage === 'neuron' ? neuronPanel(() => go('net')) : netPanel();
         title = stage === 'neuron' ? 'Teach it to forecast.' : 'Now give it more neurons.';
         lede = stage === 'neuron'
           ? 'One artificial neuron: inputs times weights, added up. It starts with random weights, so its first forecasts are wild. Learning is one move, repeated: predict, measure the miss, adjust the weights, try again.'
@@ -383,7 +385,7 @@ const learn = {
       stopPanel = panel.stop;
       mount(body,
         h('div', { class: 'stack' }, ...top(4, 'sys', title, lede)),
-        seg([['neuron', 'One neuron'], ['net', 'More neurons'], ['org', 'The organization']], stage, go),
+        seg([['org', 'The organization'], ['neuron', 'One neuron'], ['net', 'More neurons']], stage, go),
         panel.node);
     };
     paint();

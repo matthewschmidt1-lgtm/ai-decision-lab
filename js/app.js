@@ -28,6 +28,7 @@ function render() {
     back: () => SCREENS[i - 1] && go(SCREENS[i - 1].id),
     go,
     hasBack: i > 0,
+    entered: true,
     rerender: render,
   };
   let screen;
