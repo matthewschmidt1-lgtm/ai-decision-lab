@@ -21,12 +21,12 @@ export const said = (F) => ({
   fin: `${F.cheapest ? 'Carrying cost was the lowest' : 'Carrying cost stayed low'}: ${k(F.holding)}.`,
 });
 
-// What each department's own scorecard says about the quarter-end push.
+// What each department's own scorecard says about the year-end push.
 export const saidPush = (F) => ({
   mkt: `Spent the whole budget. ${pc(F.spendOnLeaders)} of it reached products ${PRODUCTS[0]} and ${PRODUCTS[1]}.`,
-  sales: `I hit my number in ${F.hits} of ${F.quarters} quarters.`,
-  ops: `Every order shipped on time. I closed the quarter-end gap ${F.hits} times.`,
-  fin: `Revenue booked on plan in ${F.hits} of ${F.quarters} quarters.`,
+  sales: `I hit my number: ${pc(F.attain)} of plan.`,
+  ops: `Every order shipped on time. I closed the year-end gap with ${int(F.y1.push)} cases.`,
+  fin: `Revenue booked at ${pc(F.attain)} of plan.`,
 });
 
 // The two events, each with its chain of links, who sees which, and what the lens finds.
@@ -44,12 +44,12 @@ const campaignLens = (F) => [
   h('div', { class: 'stats reveal' }, stat('Cost, learning locally', k(F.total), 'what the campaign cost'), stat('Cost, learning from the whole chain', k(F.best), 'a plan that read every link', 'ai')),
 ];
 
-// The quarter-end push, as a film in five acts: the handoff, the reservoir, two scoreboards, the empty chair, the loop.
+// The year-end push, as a film in five acts: the handoff, the reservoir, two scoreboards, the empty chair, the loop.
 const pushLens = (F) => {
   const film = pushFilm(F.P);
   whenVisible(film.node, () => film.start());
   return [
-    h('p', { class: 'verdict reveal' }, `Everyone hit the number. Sales and marketing created ${pc(F.createdShare)} of the growth. Operations shipped in the other ${pc(F.pushShare)}, in the last week of the quarter.`),
+    h('p', { class: 'verdict reveal' }, `Everyone hit the number. Demand explains ${pc(F.createdShare)} of the growth. The other ${pc(F.pushShare)} was shipped into the distributor in the last week of the year.`),
     film.node,
   ];
 };

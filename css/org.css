@@ -187,6 +187,8 @@
 .f-disc { stroke: var(--paper); stroke-width: 3; }
 .f-letter { font: 700 14px var(--font); fill: #fff; }
 .f-baton { fill: var(--gold); stroke: var(--ink); stroke-width: 2; }
+.film-so { font: 650 1rem/1.4 var(--font-display); letter-spacing: -0.01em; max-width: 60ch; border-left: 3px solid var(--gold); padding: 2px 0 2px 14px; }
+.f-ask { fill: var(--paper); stroke: var(--gold); stroke-width: 1.8; }
 .f-lane-t { font: 600 11.5px var(--font); fill: var(--ink-2); }
 .f-box { fill: var(--ink-2); }
 .f-boxt { font: 700 14px var(--font); fill: #fff; }
