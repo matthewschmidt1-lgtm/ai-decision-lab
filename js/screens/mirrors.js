@@ -4,9 +4,9 @@
 // runs through every department. Two events: a campaign that outran its stock, and a quarter-end push
 // in which Operations does the work of sales and marketing. Every number a mirror quotes is computed.
 
-import { h, s, mount, int, stat } from '../ui.js';
-import { DEPTS, CHAIN, SEES, mirrorFacts, unseenLinks, PUSH_CHAIN, PUSH_SEES, PRODUCTS, PUSH, pushFacts, overlapOf, MARKETING_MIX, SALES_MIX } from '../org.js';
-import { effortBars, growthWaterfall, ratchetChart } from './pushfig.js';
+import { h, s, mount, int, stat, whenVisible } from '../ui.js';
+import { DEPTS, CHAIN, SEES, mirrorFacts, unseenLinks, PUSH_CHAIN, PUSH_SEES, PRODUCTS, pushFacts } from '../org.js';
+import { pushFilm } from './film.js';
 
 const pc = (v) => `${Math.round(Math.abs(v) * 100)}%`;
 const k = (n) => `$${Math.round(n / 1000)}K`;
@@ -44,15 +44,13 @@ const campaignLens = (F) => [
   h('div', { class: 'stats reveal' }, stat('Cost, learning locally', k(F.total), 'what the campaign cost'), stat('Cost, learning from the whole chain', k(F.best), 'a plan that read every link', 'ai')),
 ];
 
-// The quarter-end push, in three beats: the effort that does not overlap, where the growth came from, and a pattern that ratchets.
+// The quarter-end push, as a film in five acts: the handoff, the reservoir, two scoreboards, the empty chair, the loop.
 const pushLens = (F) => {
-  const P = F.P, ov = overlapOf(MARKETING_MIX, SALES_MIX), last = P.quarters[P.quarters.length - 1];
+  const film = pushFilm(F.P);
+  whenVisible(film.node, () => film.start());
   return [
-    h('p', { class: 'verdict reveal' }, `Everyone hit the number, and ${pc(F.pushShare)} of the growth was Operations shipping into the distributor in the last week of the quarter. Depletions grew ${pc(P.created / P.baseQ)}.`),
-    h('div', { class: 'stack-s reveal' }, h('h4', { class: 'beat' }, 'Where the effort went'), effortBars(), h('p', { class: 'micro' }, `Marketing and sales worked the same products for only ${pc(ov)} of their effort.`)),
-    h('div', { class: 'stack-s reveal' }, h('h4', { class: 'beat' }, 'Where the growth came from'), growthWaterfall(P)),
-    h('div', { class: 'stack-s reveal' }, h('h4', { class: 'beat' }, 'And it becomes normal'), ratchetChart(P),
-      h('p', { class: 'small' }, `The push grew from ${int(F.pushes[0])} to ${int(F.pushes[1])} to ${int(F.pushes[2])} cases, because each one was still sitting at the distributor. By quarter ${last.q} it held ${last.cover.toFixed(1)} weeks of stock against the ${PUSH.cover} weeks it needs${F.missed ? `, could take no more, and the plan was missed by ${int(F.shortBy)} cases` : ''}.`)),
+    h('p', { class: 'verdict reveal' }, `Everyone hit the number. Sales and marketing created ${pc(F.createdShare)} of the growth. Operations shipped in the other ${pc(F.pushShare)}, in the last week of the quarter.`),
+    film.node,
   ];
 };
 
@@ -118,7 +116,7 @@ export function mirrorPanel(state, save) {
   const paintOut = () => {
     mount(out, state.mirror === 'system'
       ? SC.lens()
-      : h('p', { class: 'small' }, `${list(dark.map((c) => c.label))} sit on no department’s scorecard, so nobody’s loop learns from them.`));
+      : h('p', { class: 'callout' }, `Every scorecard looks fine. None of them shows ${list(dark.map((c) => c.plain || c.label.toLowerCase()))}.`));
   };
 
   function set(mode) {

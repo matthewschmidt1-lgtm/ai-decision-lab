@@ -155,36 +155,70 @@
 .mirror-out { max-width: var(--measure); }
 @media (max-width: 640px) { .mdepts { grid-template-columns: repeat(2, minmax(0, 1fr)); } .mirror { gap: 46px; } }
 
-/* The quarter-end push: effort, growth, and the ratchet */
+/* The quarter-end push, told as a rescue */
 .beat { font: 650 0.95rem var(--font-display); letter-spacing: -0.01em; }
-.mirror-out { max-width: 760px; }
-.mirror-out .chart { max-width: 760px; }
-.eb { display: grid; gap: 10px; max-width: 520px; }
-.eb-key { display: flex; gap: 16px; }
-.eb-key span { display: inline-flex; align-items: center; gap: 6px; }
-.eb-key i { width: 10px; height: 10px; border-radius: 3px; }
-.eb-mkt { background: var(--d-mkt); }
-.eb-sales { background: var(--d-sales); }
-.eb-row { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: center; }
-.eb-p { font: 700 0.95rem var(--font-display); }
-.eb-bars { display: grid; gap: 3px; }
-.eb-line { display: flex; align-items: center; gap: 8px; }
-.eb-line i { display: block; height: 12px; min-width: 2px; border-radius: 0 4px 4px 0; transform-origin: left; animation: grow 800ms var(--ease) both; }
-.eb-line span { font: 600 0.75rem var(--mono); color: var(--ink-2); }
-.gw { display: grid; gap: 7px; }
-.gw-row { display: grid; grid-template-columns: minmax(130px, 230px) minmax(0, 1fr) 44px; gap: 12px; align-items: center; }
-.gw-label { font-size: var(--fs-small); line-height: 1.3; }
-.gw-track { position: relative; height: 16px; }
-.gw-track::after { content: ""; position: absolute; left: var(--plan); top: -5px; bottom: -5px; border-left: 2px dashed var(--gold); }
-.gw-bar { position: absolute; top: 0; bottom: 0; border-radius: 0 4px 4px 0; transform-origin: left; animation: grow 800ms var(--ease) both; }
-.gw-row.plan .gw-bar { box-shadow: inset 0 0 0 2px var(--gold); border-radius: 4px; }
-.gw-row.demand .gw-bar { background: var(--s-actual); }
-.gw-row.push .gw-bar { background: var(--d-ops); border-radius: 4px; animation-delay: 250ms; }
-.gw-row.total .gw-bar { background: var(--ink-2); animation-delay: 500ms; }
-.gw-row.ghost .gw-bar { background: repeating-linear-gradient(135deg, var(--line-2) 0 3px, transparent 3px 6px); box-shadow: inset 0 0 0 1.5px var(--line-2); }
-.gw-row.ghost .gw-label { color: var(--muted); }
-.gw-val { text-align: right; font-weight: 650; font-size: var(--fs-small); }
-@media (max-width: 560px) { .gw-row { grid-template-columns: minmax(0, 1fr) 44px; gap: 4px 10px; } .gw-label { grid-column: 1 / -1; } .gw-track { grid-column: 1; } .gw-val { grid-column: 2; } }
+.beat-row { justify-content: space-between; }
+.mirror-out { max-width: 880px; }
+.callout { font: 600 1.05rem/1.4 var(--font-display); letter-spacing: -0.01em; color: var(--ink); max-width: 52ch; border-left: 3px solid var(--bad); padding: 2px 0 2px 14px; }
+.mlink.dark .mdot { animation: mdark 2.4s ease-in-out infinite; }
+.mirror[data-mode="system"] .mlink.dark .mdot { animation: none; }
+@keyframes mdark { 50% { box-shadow: inset 0 0 0 2px var(--bad), 0 0 0 5px rgba(179, 38, 30, 0.14); } }
+
+/* The quarter-end push, as a film */
+.film { display: grid; gap: 10px; max-width: 600px; }
+.film-key { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.8125rem; color: var(--ink-2); }
+.film-key span { display: inline-flex; align-items: center; gap: 6px; }
+.film-key i { width: 10px; height: 10px; border-radius: 50%; }
+.film-stage { background: var(--paper); border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--line); padding: 8px; }
+.film-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.film-cap { font: 650 clamp(1rem, 0.95rem + 0.35vw, 1.15rem)/1.4 var(--font-display); letter-spacing: -0.012em; max-width: 60ch; min-height: 6.6em; text-wrap: pretty; }
+.film-bar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.film-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.film-chip { display: inline-flex; align-items: center; gap: 6px; border: 0; background: var(--sunk); border-radius: var(--r-pill); padding: 5px 12px 5px 5px; font: 600 0.8125rem var(--font); color: var(--ink-2); }
+.film-chip i { width: 22px; height: 22px; border-radius: 50%; background: var(--paper); display: grid; place-items: center; font: 700 0.72rem var(--mono); font-style: normal; color: var(--ink); }
+.film-chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.film-chip[aria-pressed="true"] i { background: var(--gold); }
+@media (max-width: 640px) { .film-chip { padding-right: 5px; } .film-chip span { display: none; } .film-chip[aria-pressed="true"] { padding-right: 12px; } .film-chip[aria-pressed="true"] span { display: inline; } .film-cap { min-height: 8em; } }
+.f-lane { stroke: var(--line-2); stroke-width: 2; stroke-dasharray: 2 6; }
+.f-finish { stroke: var(--gold); stroke-width: 4; stroke-linecap: round; }
+.f-pole { stroke: var(--ink-2); stroke-width: 2; }
+.f-flag { fill: var(--gold); transform-origin: 0 0; }
+.f-hq { font: 700 11px var(--font); fill: var(--ink); }
+.f-disc { stroke: var(--paper); stroke-width: 3; }
+.f-letter { font: 700 14px var(--font); fill: #fff; }
+.f-baton { fill: var(--gold); stroke: var(--ink); stroke-width: 2; }
+.f-lane-t { font: 600 11.5px var(--font); fill: var(--ink-2); }
+.f-box { fill: var(--ink-2); }
+.f-boxt { font: 700 14px var(--font); fill: #fff; }
+.f-q { font: 700 24px var(--font-display); fill: var(--ink-2); }
+.f-small { font: 600 12.5px var(--font); fill: var(--ink-2); }
+.f-left { text-anchor: start; }
+.f-num { font: 700 15px var(--font-display); fill: var(--ink); }
+.f-olive { fill: var(--d-ops); }
+.f-good { fill: var(--good); font: 700 13px var(--font); }
+.f-badt { fill: var(--bad); }
+.f-mark { font: 700 18px var(--font); }
+.f-outline { fill: none; stroke: var(--ink-2); stroke-width: 2; }
+.f-bottom { transform-box: fill-box; transform-origin: bottom; }
+.f-center { transform-box: fill-box; transform-origin: center; }
+.f-target { stroke: var(--gold); stroke-width: 2; stroke-dasharray: 5 4; }
+.f-need { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.f-tick { font: 600 10.5px var(--mono); fill: var(--ink-2); }
+.f-pipe { stroke: var(--d-ops); stroke-width: 10; stroke-dasharray: 8 6; }
+.f-link { fill: none; stroke: var(--gold); stroke-width: 2; stroke-dasharray: 5 4; }
+.f-store { fill: var(--sunk); stroke: var(--ink-2); stroke-width: 1.5; }
+.f-roof { fill: var(--ink-2); }
+.f-stream { stroke: var(--ink-2); stroke-width: 3; stroke-dasharray: 5 5; stroke-linecap: round; }
+.f-zero { stroke: var(--line-2); stroke-width: 1.5; }
+.f-table { fill: var(--sunk); stroke: var(--line-2); }
+.f-card { fill: rgba(30, 127, 79, 0.12); stroke: var(--good); stroke-width: 1.2; }
+.f-chair { fill: none; stroke: var(--bad); stroke-width: 2.5; stroke-dasharray: 5 4; }
+.f-q2 { font: 700 22px var(--font-display); fill: var(--bad); }
+.f-clap { stroke: var(--gold); stroke-width: 3; stroke-linecap: round; }
+.f-ring { fill: none; stroke: var(--line-2); stroke-width: 3; stroke-dasharray: 2 8; }
+.f-step { stroke: var(--paper); stroke-width: 3; }
+.f-run { fill: var(--gold); stroke: var(--ink); stroke-width: 1.5; }
+.f-lap { font: 700 17px var(--font-display); fill: var(--ink-2); }
 
 /* ---------- 3. The week as a calendar ---------- */
 .cals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(16px, 4vw, 40px); }

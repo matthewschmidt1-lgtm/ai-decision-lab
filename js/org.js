@@ -104,7 +104,7 @@ export function runCampaign(mode) {
 // from the campaign run when Operations sets the stock alone.
 export const CHAIN = [
   { id: 'campaign', label: 'Campaign' }, { id: 'demand', label: 'Demand' }, { id: 'orders', label: 'Orders' },
-  { id: 'inventory', label: 'Inventory' }, { id: 'production', label: 'Production' }, { id: 'margin', label: 'Margin' }, { id: 'customer', label: 'Customer' },
+  { id: 'inventory', label: 'Inventory' }, { id: 'production', label: 'Production' }, { id: 'margin', label: 'Margin', plain: 'the margin that was lost' }, { id: 'customer', label: 'Customer', plain: 'what customers got' },
 ];
 export const SEES = { mkt: ['campaign', 'demand'], sales: ['demand', 'orders'], ops: ['orders', 'inventory', 'production'], fin: ['inventory'] };
 export const unseenLinks = (chain = CHAIN, sees = SEES) => chain.filter((c) => !DEPTS.some((d) => sees[d.id].includes(c.id)));
@@ -137,7 +137,7 @@ export const SALES_MIX = [0.05, 0.05, 0.4, 0.5];         // where the sales team
 export const PUSH = { base: 100, weeks: 13, quarters: 4, potential: 0.12, growth: 0.1, cover: 3, cap: 6, adjust: 0.5 };
 export const PUSH_CHAIN = [
   { id: 'spend', label: 'Spend' }, { id: 'demand', label: 'Demand' }, { id: 'selling', label: 'Selling' }, { id: 'orders', label: 'Orders' },
-  { id: 'shipments', label: 'Shipments' }, { id: 'stock', label: 'Dist. stock' }, { id: 'depletions', label: 'Depletions' }, { id: 'customer', label: 'Customer' },
+  { id: 'shipments', label: 'Shipments' }, { id: 'stock', label: 'Dist. stock', plain: 'how much stock the distributor is holding' }, { id: 'depletions', label: 'Depletions', plain: 'what accounts actually bought' }, { id: 'customer', label: 'Customer', plain: 'what customers got' },
 ];
 export const PUSH_SEES = { mkt: ['spend', 'demand'], sales: ['selling', 'orders', 'shipments'], ops: ['orders', 'shipments'], fin: ['shipments'] };
 
