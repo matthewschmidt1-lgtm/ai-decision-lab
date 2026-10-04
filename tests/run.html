@@ -177,13 +177,13 @@ t('Every screen renders, and none carries more than 320 words outside its charts
   return eq(!over.length && total < 1900, `over: ${JSON.stringify(over)}, total ${total}, ${JSON.stringify(counts)}`);
 });
 
-t('The organization view stays under the word budget in both modes, mirrors and whole chain', () => {
+t('The organization view stays under the word budget in both scenarios and both modes, mirrors and whole chain', () => {
   const saved = JSON.stringify(state), noop = () => {}, ctx = { state, save: noop, next: noop, back: noop, go: noop, hasBack: true, rerender: noop };
   const learn = screens.find((x) => x.id === 'learn'), out = {};
   state.learnView = 'org';
-  for (const m of ['local', 'system']) { state.mirror = m; out[m] = words(learn.render(ctx)); }
+  for (const sc of ['campaign', 'push']) for (const m of ['local', 'system']) { state.scenario = sc; state.mirror = m; out[`${sc}/${m}`] = words(learn.render(ctx)); }
   Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, JSON.parse(saved));
-  return eq(out.local <= 320 && out.system <= 320, JSON.stringify(out));
+  return eq(Object.values(out).every((n) => n <= 320), JSON.stringify(out));
 });
 
 section('The small neural network (screen 4)');
@@ -219,11 +219,11 @@ t('Twelve neurons do worse on unseen points than three, in most random draws (me
 section('Saved choices from an older version must never break a page');
 t('Stale or nonsense saved choices are cleaned up instead of crashing any screen', () => {
   const saved = JSON.stringify(state), noop = () => {};
-  Object.assign(state, { pulls: { mkt: 'x', sales: -4, fin: 99, ops: null }, reveal: 'maybe', view: 'gone', seen: 'gone', learnView: 'gone', mirror: 'gone', buffer: 'gone', job: 'gone', gap: 'gone', destination: 'gone', autoShare: 'x', announce: 'gone', safeAns: ['nonsense', 7], shared: 'lots', measure: 'gone', steer: 'gone' });
+  Object.assign(state, { pulls: { mkt: 'x', sales: -4, fin: 99, ops: null }, reveal: 'maybe', view: 'gone', seen: 'gone', learnView: 'gone', mirror: 'gone', scenario: 'gone', buffer: 'gone', job: 'gone', gap: 'gone', destination: 'gone', autoShare: 'x', announce: 'gone', safeAns: ['nonsense', 7], shared: 'lots', measure: 'gone', steer: 'gone' });
   let msg = true;
   try { withViews((sc) => sc.render({ state, save: noop, next: noop, back: noop, go: noop, hasBack: true, rerender: noop })); }
   catch (e) { msg = `${e.message}`; }
-  const healed = state.learnView === 'org' && state.mirror === 'local' && state.view === 'wave' && state.seen === 'orders' && state.buffer === 'alone' && state.job === null && state.reveal === false && state.pulls.sales === 0 && state.pulls.fin === 2 && state.measure === 'depletions';
+  const healed = state.scenario === 'campaign' && state.learnView === 'org' && state.mirror === 'local' && state.view === 'wave' && state.seen === 'orders' && state.buffer === 'alone' && state.job === null && state.reveal === false && state.pulls.sales === 0 && state.pulls.fin === 2 && state.measure === 'depletions';
   Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, JSON.parse(saved));
   return eq(msg === true && healed, msg === true ? 'a stale value was kept' : msg);
 });
@@ -291,6 +291,15 @@ const MF = ORG.mirrorFacts();
 t('Each mirror reports something true: Marketing launched and demand rose, Sales forecast within 15%, Operations held the least stock, Finance paid the least to carry it', () => eq(MF.peakLift > 0.5 && Math.abs(MF.forecastErr) < 0.15 && MF.leanest && MF.cheapest, JSON.stringify(MF)));
 t('Yet the whole chain lost: the shelf ran empty in the campaign, margin was lost, a glut followed, and a plan that read the whole chain cost much less', () => eq(MF.emptyWeek >= ORG.CAMPAIGN_START && MF.served < 0.95 && MF.missed > 0 && MF.glut > 2 * ORG.BASE && MF.best < MF.total * 0.5, JSON.stringify(MF)));
 t('No department\u2019s scorecard shows margin or the customer outcome, and every department sees at least one link', () => eq(ORG.unseenLinks().map((c) => c.id).join() === 'margin,customer' && ORG.DEPTS.every((d) => ORG.SEES[d.id].length > 0 && ORG.SEES[d.id].every((id) => ORG.CHAIN.some((c) => c.id === id))), JSON.stringify(ORG.unseenLinks())));
+
+section('The quarter-end push: Operations does the work of sales and marketing (screen 4)');
+const PF = ORG.pushFacts(), PP = PF.P;
+t('Stock at the distributor is exactly what was shipped in minus what accounts took out, every week', () => { let s0 = PP.start; for (let i = 0; i < PP.ship.length; i++) { s0 += PP.ship[i] - PP.depl[i]; if (Math.abs(s0 - PP.stock[i]) > 1e-6) return `week ${i}`; } });
+t('Marketing and sales effort barely overlap, so real demand supplies a minority of the growth the plan asks for', () => eq(PP.overlap < 0.35 && PF.createdShare < 0.4 && PP.created > 0, JSON.stringify([PP.overlap, PF.createdShare])));
+t('Shipments hit the number in early quarters, and almost all the growth is the push, not demand', () => eq(PP.quarters[0].hit && Math.abs(PP.quarters[0].shipments - PP.target) < 1e-6 && PF.pushShare > 0.6 && Math.abs(PF.pushShare + PF.createdShare - 1) < 1e-9, JSON.stringify([PF.pushShare, PF.createdShare])));
+t('Depletions never reach the number, however many quarters hit it: shipments end above depletions by the stock built', () => eq(PP.quarters.every((q) => q.depletions < PP.target) && PP.quarters.slice(0, 3).every((q) => q.shipments > q.depletions) && PF.endCover > 2 * PF.need * 0.9, JSON.stringify(PP.quarters.map((q) => [q.shipments, q.depletions]))));
+t('The push has to grow each quarter, because the last one is still sitting at the distributor, until it hits what the distributor can hold and the plan is missed', () => { const p = PF.pushes; return eq(p[1] > p[0] * 1.5 && p[2] > p[1] && PF.atCap && PF.missed && PF.shortBy > 0, JSON.stringify([p, PF.endCover, PF.shortBy])); });
+t('The same effort aimed at the same products would create more growth than the plan asks for, with no push at all', () => eq(PP.aligned > PP.plan, `${PP.aligned} vs ${PP.plan}`));
 
 section('Vocabulary: shipments, depletions and sell-through are different steps');
 t('No screen uses shopper wording for depletions, or borrows sell-in, sell-out or pull-through', () => {

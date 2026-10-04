@@ -13,6 +13,7 @@ const fresh = () => ({
   buffer: 'alone',      // who sets the stock behind the campaign (screen 2)
   job: null,            // the block of the week they have opened to see who should do it (screen 3)
   learnView: 'org',     // which part of screen 4 they are on: the organization (the default), one neuron, or more neurons
+  scenario: 'campaign',   // which event the mirrors reflect: the campaign, or the quarter-end push
   mirror: 'local',      // the organization part: each department's own mirror, or the whole chain
   autoShare: 0.6,       // how much of the routine work the computer takes over, on the time screen
   destination: 'judgment',   // where the freed hours go

@@ -361,6 +361,7 @@ const learn = {
     if (ctx.entered) { state.learnView = 'org'; state.mirror = 'local'; }
     if (!LEARN_VIEWS.includes(state.learnView)) state.learnView = 'org';
     if (state.mirror !== 'system') state.mirror = 'local';
+    if (state.scenario !== 'push') state.scenario = 'campaign';
     let stopPanel = () => {};
     const body = h('div', { class: 'stack-l' });
     const go = (v) => { state.learnView = v; save(); paint(); window.scrollTo({ top: 0, behavior: 'instant' }); };
@@ -372,9 +373,10 @@ const learn = {
         const m = mirrorPanel(state, save);
         const btn = h('button', { class: `btn small${state.mirror === 'system' ? ' ghost' : ''}`, type: 'button' }, state.mirror === 'system' ? 'Back to the mirrors' : 'Pull the camera back');
         btn.addEventListener('click', () => { m.set(state.mirror === 'system' ? 'local' : 'system'); btn.textContent = state.mirror === 'system' ? 'Back to the mirrors' : 'Pull the camera back'; btn.classList.toggle('ghost', state.mirror === 'system'); });
-        panel = { node: h('div', { class: 'stack-l' }, m.node, h('div', { class: 'stack-s' }, h('div', { class: 'row' }, btn, h('button', { class: 'link', type: 'button', onClick: () => go('neuron') }, 'How a machine learns', h('span', { 'aria-hidden': 'true' }, ' →'))), m.out)), stop: m.stop };
+        const events = seg([['campaign', 'A campaign'], ['push', 'A quarter-end push']], state.scenario, (id) => { state.scenario = id; state.mirror = 'local'; save(); paint(); });
+        panel = { node: h('div', { class: 'stack-l' }, events, m.node, h('div', { class: 'stack-s' }, h('div', { class: 'row' }, btn, h('button', { class: 'link', type: 'button', onClick: () => go('neuron') }, 'How a machine learns', h('span', { 'aria-hidden': 'true' }, ' →'))), m.out)), stop: m.stop };
         title = 'Four mirrors. One lens.';
-        lede = 'A department learns from what its own scorecard shows. The campaign touched seven links, and no single mirror shows them all.';
+        lede = 'A department learns from what its own scorecard shows. Every event touches a chain of links, and no single mirror shows them all.';
       } else {
         panel = stage === 'neuron' ? neuronPanel(() => go('net')) : netPanel();
         title = stage === 'neuron' ? 'Teach it to forecast.' : 'Now give it more neurons.';

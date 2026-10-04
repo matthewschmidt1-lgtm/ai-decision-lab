@@ -107,7 +107,7 @@ export const CHAIN = [
   { id: 'inventory', label: 'Inventory' }, { id: 'production', label: 'Production' }, { id: 'margin', label: 'Margin' }, { id: 'customer', label: 'Customer' },
 ];
 export const SEES = { mkt: ['campaign', 'demand'], sales: ['demand', 'orders'], ops: ['orders', 'inventory', 'production'], fin: ['inventory'] };
-export const unseenLinks = () => CHAIN.filter((c) => !DEPTS.some((d) => SEES[d.id].includes(c.id)));
+export const unseenLinks = (chain = CHAIN, sees = SEES) => chain.filter((c) => !DEPTS.some((d) => sees[d.id].includes(c.id)));
 
 export function mirrorFacts() {
   const runs = Object.fromEntries(BUFFERS.map((b) => [b.id, runCampaign(b.id)]));
@@ -121,5 +121,65 @@ export function mirrorFacts() {
     holding: a.holding, cheapest: all.every((r) => a.holding <= r.holding),             // Finance: the cost of carrying it
     served: a.served, lost: a.lostTotal, missed: a.missed, glut: a.glut, emptyWeek: a.emptyWeek,   // the whole chain
     total: a.total, best: Math.min(...all.map((r) => r.total)),
+  };
+}
+
+// ---------------------------------------------------------------- The quarter-end push
+// Marketing spends a lot on some products. Sales sells others. Together they create only a sliver of
+// the growth the plan asks for, and the sales number is measured in shipments, so at the end of every
+// quarter Operations ships the difference into the distributor. It hits the number and moves nothing
+// to accounts. The distributor then orders less to work the stock off, so the next push must be bigger,
+// until the distributor cannot hold more. Mixes, targets and the distributor's rule are illustrative
+// assumptions; the arithmetic (stock = shipments minus depletions) is exact.
+export const PRODUCTS = ['A', 'B', 'C', 'D'];
+export const MARKETING_MIX = [0.6, 0.3, 0.05, 0.05];     // where the marketing budget goes
+export const SALES_MIX = [0.05, 0.05, 0.4, 0.5];         // where the sales team's effort goes
+export const PUSH = { base: 100, weeks: 13, quarters: 4, potential: 0.12, growth: 0.1, cover: 3, cap: 6, adjust: 0.5 };
+export const PUSH_CHAIN = [
+  { id: 'spend', label: 'Spend' }, { id: 'demand', label: 'Demand' }, { id: 'selling', label: 'Selling' }, { id: 'orders', label: 'Orders' },
+  { id: 'shipments', label: 'Shipments' }, { id: 'stock', label: 'Dist. stock' }, { id: 'depletions', label: 'Depletions' }, { id: 'customer', label: 'Customer' },
+];
+export const PUSH_SEES = { mkt: ['spend', 'demand'], sales: ['selling', 'orders', 'shipments'], ops: ['orders', 'shipments'], fin: ['shipments'] };
+
+export const overlapOf = (a, b) => a.reduce((acc, v, i) => acc + Math.min(v, b[i]), 0);
+
+export function runPush() {
+  const { base, weeks, quarters, potential, growth, cover, cap, adjust } = PUSH;
+  const overlap = overlapOf(MARKETING_MIX, SALES_MIX);
+  const baseQ = base * weeks, target = baseQ * (1 + growth);
+  const dep = base * (1 + potential * overlap);                  // depletions a week: only aligned effort lifts them
+  let stock = cover * dep;
+  const start = stock, ship = [], depl = [], stk = [], qs = [];
+  for (let q = 0; q < quarters; q++) {
+    let cum = 0, normal = 0, push = 0;
+    for (let w = 0; w < weeks; w++) {
+      const order = Math.max(0, dep + adjust * (cover * dep - stock));   // the distributor restores its cover
+      let sh = order; normal += order;
+      if (w === weeks - 1) {                                      // quarter end: Operations closes the gap to the number
+        const room = Math.max(0, cap * dep - (stock + sh - dep));
+        push = Math.min(Math.max(0, target - (cum + sh)), room);
+        sh += push;
+      }
+      cum += sh; stock += sh - dep;
+      ship.push(sh); depl.push(dep); stk.push(stock);
+    }
+    qs.push({ q: q + 1, shipments: cum, depletions: dep * weeks, push, normal, endStock: stock, cover: stock / dep, hit: cum >= target - 1e-6 });
+  }
+  return {
+    overlap, baseQ, target, dep, start, ship, depl, stock: stk, quarters: qs,
+    plan: target - baseQ,                                         // growth the plan asks for, in cases
+    created: dep * weeks - baseQ,                                 // growth that real demand supplied
+    aligned: potential * baseQ,                                   // growth the same effort would create if both worked the same products
+  };
+}
+
+export function pushFacts() {
+  const P = runPush(), hits = P.quarters.filter((q) => q.hit).length, q1 = P.quarters[0], last = P.quarters[P.quarters.length - 1];
+  return {
+    P, hits, quarters: P.quarters.length,
+    spendOnLeaders: MARKETING_MIX.slice(0, 2).reduce((a, b) => a + b, 0),             // share of marketing spend on products A and B
+    pushShare: q1.push / P.plan, createdShare: P.created / P.plan,
+    pushes: P.quarters.map((q) => q.push), endCover: last.cover, missed: !last.hit, shortBy: P.target - last.shipments,
+    atCap: last.cover >= PUSH.cap - 0.01, need: PUSH.cover,
   };
 }

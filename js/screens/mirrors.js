@@ -1,13 +1,16 @@
 // Four mirrors, then one lens. Each department learns from its own scorecard, a small loop that closes
-// inside the department. The campaign touched seven links, and each mirror reflects only some of them.
+// inside the department. An event touches a chain of links, and each mirror reflects only some of them.
 // Pull the camera back and an AI lens lights the whole chain, and learning becomes one large loop that
-// runs through every department. Every number a mirror quotes is computed from the campaign run.
+// runs through every department. Two events: a campaign that outran its stock, and a quarter-end push
+// in which Operations does the work of sales and marketing. Every number a mirror quotes is computed.
 
 import { h, s, mount, int, stat } from '../ui.js';
-import { DEPTS, CHAIN, SEES, mirrorFacts, unseenLinks } from '../org.js';
+import { DEPTS, CHAIN, SEES, mirrorFacts, unseenLinks, PUSH_CHAIN, PUSH_SEES, PRODUCTS, PUSH, pushFacts, overlapOf, MARKETING_MIX, SALES_MIX } from '../org.js';
+import { effortBars, growthWaterfall, ratchetChart } from './pushfig.js';
 
 const pc = (v) => `${Math.round(Math.abs(v) * 100)}%`;
 const k = (n) => `$${Math.round(n / 1000)}K`;
+const list = (a) => (a.length < 2 ? a.join('') : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`);
 const reduced = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // What each department's own scorecard says about the campaign.
@@ -18,19 +21,55 @@ export const said = (F) => ({
   fin: `${F.cheapest ? 'Carrying cost was the lowest' : 'Carrying cost stayed low'}: ${k(F.holding)}.`,
 });
 
+// What each department's own scorecard says about the quarter-end push.
+export const saidPush = (F) => ({
+  mkt: `Spent the whole budget. ${pc(F.spendOnLeaders)} of it reached products ${PRODUCTS[0]} and ${PRODUCTS[1]}.`,
+  sales: `I hit my number in ${F.hits} of ${F.quarters} quarters.`,
+  ops: `Every order shipped on time. I closed the quarter-end gap ${F.hits} times.`,
+  fin: `Revenue booked on plan in ${F.hits} of ${F.quarters} quarters.`,
+});
+
+// The two events, each with its chain of links, who sees which, and what the lens finds.
+function scenario(name) {
+  if (name === 'push') {
+    const F = pushFacts();
+    return { name, F, chain: PUSH_CHAIN, sees: PUSH_SEES, said: saidPush(F), dark: unseenLinks(PUSH_CHAIN, PUSH_SEES), lens: () => pushLens(F) };
+  }
+  const F = mirrorFacts();
+  return { name: 'campaign', F, chain: CHAIN, sees: SEES, said: said(F), dark: unseenLinks(), lens: () => campaignLens(F) };
+}
+
+const campaignLens = (F) => [
+  h('p', { class: 'verdict reveal' }, `${pc(F.served)} of the campaign’s demand was served. The shelf ran empty in week ${F.emptyWeek + 1}, ${k(F.missed)} of margin was lost, and ${int(F.glut)} cases sat unsold after. Each department was right. The company paid ${k(F.total)}.`),
+  h('div', { class: 'stats reveal' }, stat('Cost, learning locally', k(F.total), 'what the campaign cost'), stat('Cost, learning from the whole chain', k(F.best), 'a plan that read every link', 'ai')),
+];
+
+// The quarter-end push, in three beats: the effort that does not overlap, where the growth came from, and a pattern that ratchets.
+const pushLens = (F) => {
+  const P = F.P, ov = overlapOf(MARKETING_MIX, SALES_MIX), last = P.quarters[P.quarters.length - 1];
+  return [
+    h('p', { class: 'verdict reveal' }, `Everyone hit the number, and ${pc(F.pushShare)} of the growth was Operations shipping into the distributor in the last week of the quarter. Depletions grew ${pc(P.created / P.baseQ)}.`),
+    h('div', { class: 'stack-s reveal' }, h('h4', { class: 'beat' }, 'Where the effort went'), effortBars(), h('p', { class: 'micro' }, `Marketing and sales worked the same products for only ${pc(ov)} of their effort.`)),
+    h('div', { class: 'stack-s reveal' }, h('h4', { class: 'beat' }, 'Where the growth came from'), growthWaterfall(P)),
+    h('div', { class: 'stack-s reveal' }, h('h4', { class: 'beat' }, 'And it becomes normal'), ratchetChart(P),
+      h('p', { class: 'small' }, `The push grew from ${int(F.pushes[0])} to ${int(F.pushes[1])} to ${int(F.pushes[2])} cases, because each one was still sitting at the distributor. By quarter ${last.q} it held ${last.cover.toFixed(1)} weeks of stock against the ${PUSH.cover} weeks it needs${F.missed ? `, could take no more, and the plan was missed by ${int(F.shortBy)} cases` : ''}.`)),
+  ];
+};
+
 export function mirrorPanel(state, save) {
-  const F = mirrorFacts(), SAID = said(F), dark = unseenLinks();
+  const SC = scenario(state.scenario), SAID = SC.said, dark = SC.dark, CHAIN_ = SC.chain, SEES_ = SC.sees;
   const root = h('div', { class: 'mirror' });
   root.dataset.mode = state.mirror;
 
-  // The seven links of the event, left to right. A link is ringed in the colour of each department that sees it.
-  const links = CHAIN.map((c) => {
-    const seers = DEPTS.filter((d) => SEES[d.id].includes(c.id));
+  // The links of the event, left to right. A link is ringed in the colour of each department that sees it.
+  const links = CHAIN_.map((c) => {
+    const seers = DEPTS.filter((d) => SEES_[d.id].includes(c.id));
     const dot = h('i', { class: 'mdot' });
     if (seers.length) dot.style.background = seers.length === 1 ? seers[0].color : `conic-gradient(${seers.map((d, i) => `${d.color} ${(i * 100) / seers.length}% ${((i + 1) * 100) / seers.length}%`).join(', ')})`;
     return { c, el: h('div', { class: `mlink${seers.length ? '' : ' dark'}` }, h('span', null, c.label), dot), dot, seers };
   });
   const chain = h('div', { class: 'mchain' }, links.map((l) => l.el));
+  chain.style.gridTemplateColumns = `repeat(${links.length}, minmax(0, 1fr))`;
 
   // Four departments, each with a small loop that closes on itself.
   const depts = DEPTS.map((d) => {
@@ -58,7 +97,7 @@ export function mirrorPanel(state, save) {
     spine.setAttribute('x1', D[0].cx); spine.setAttribute('x2', D[D.length - 1].cx); spine.setAttribute('y1', yT); spine.setAttribute('y2', yT);
     beams.replaceChildren(); stubs.replaceChildren();
     depts.forEach((x, j) => links.forEach((l, i) => {
-      if (!SEES[x.d.id].includes(l.c.id)) return;
+      if (!SEES_[x.d.id].includes(l.c.id)) return;
       const y1 = C[j].y, y2 = D[i].b, mid = (y1 + y2) / 2;
       beams.append(s('path', { d: `M ${C[j].cx.toFixed(1)} ${y1.toFixed(1)} C ${C[j].cx.toFixed(1)} ${mid.toFixed(1)} ${D[i].cx.toFixed(1)} ${mid.toFixed(1)} ${D[i].cx.toFixed(1)} ${y2.toFixed(1)}`, class: 'mbeam', style: { stroke: x.d.color } }));
     }));
@@ -78,9 +117,8 @@ export function mirrorPanel(state, save) {
   const out = h('div', { class: 'stack-s mirror-out' }), timers = [];
   const paintOut = () => {
     mount(out, state.mirror === 'system'
-      ? [h('p', { class: 'verdict reveal' }, `${pc(F.served)} of the campaign’s demand was served. The shelf ran empty in week ${F.emptyWeek + 1}, ${k(F.missed)} of margin was lost, and ${int(F.glut)} cases sat unsold after. Each department was right. The company paid ${k(F.total)}.`),
-        h('div', { class: 'stats reveal' }, stat('Cost, learning locally', k(F.total), 'what the campaign cost'), stat('Cost, learning from the whole chain', k(F.best), 'a plan that read every link', 'ai'))]
-      : h('p', { class: 'small' }, `${dark.map((c) => c.label).join(' and ')} sit on no department’s scorecard, so nobody’s loop learns from them.`));
+      ? SC.lens()
+      : h('p', { class: 'small' }, `${list(dark.map((c) => c.label))} sit on no department’s scorecard, so nobody’s loop learns from them.`));
   };
 
   function set(mode) {
